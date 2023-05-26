@@ -31,10 +31,14 @@ class PerFile:
         self.filecomments += [ filecomment ]
         self.entries += [ PerFileEntry(textfileheader, filecomment) ]
     def where_filename(self, filename):
-        for entry in self.entries:
-            if entry.textfileheader.get_filename() == filename:
-                return entry
-        return None
+        return next(
+            (
+                entry
+                for entry in self.entries
+                if entry.textfileheader.get_filename() == filename
+            ),
+            None,
+        )
     def print_list_mainheader(self):
         for t_fileheader in self.headers:
             print t_fileheader.get_filename(), t_fileheader.src_mainheader()
@@ -76,15 +80,12 @@ class PerFunctionFamilyEntry:
         self.leader = leader
         self.functions = []
     def contains(self, func):
-        for item in self.functions:
-            if item == func: return True
-        return False
+        return any(item == func for item in self.functions)
     def add(self, func):
         if not self.contains(func):
             self.functions += [ func ]
     def get_name(self):
-        if self.leader is None: return None
-        return self.leader.get_name()
+        return None if self.leader is None else self.leader.get_name()
 class PerFunctionFamily:
     def __init__(self):
         self.functions = []
@@ -97,15 +98,9 @@ class PerFunctionFamily:
     def add_PerFunctionEntry(self, item):
         self.functions += [ item ]
     def get_function(self, name):
-        for item in self.functions:
-            if item.get_name() == name:
-                return item
-        return None
+        return next((item for item in self.functions if item.get_name() == name), None)
     def get_entry(self, name):
-        for item in self.entries:
-            if item.get_name() == name:
-                return item
-        return None
+        return next((item for item in self.entries if item.get_name() == name), None)
     def fill_families(self):
         name_list = {}
         for func in self.functions:
@@ -218,8 +213,7 @@ class RefEntryManualPageAdapter:
     def get_authors(self):
         comment = None
         if self.per_file:
-            entry = self.per_file.where_filename(self.get_filename())
-            if entry:
+            if entry := self.per_file.where_filename(self.get_filename()):
                 comment = entry.filecomment.xml_text()
         if comment:
             check = Match(r"(?s)<para>\s*[Aa]uthors*\b:*"
@@ -229,8 +223,7 @@ class RefEntryManualPageAdapter:
     def get_copyright(self):
         comment = None
         if self.per_file:
-            entry = self.per_file.where_filename(self.get_filename())
-            if entry:
+            if entry := self.per_file.where_filename(self.get_filename()):
                 comment = entry.filecomment.xml_text()
         if comment:
             check = Match(r"(?s)<para>\s*[Cc]opyright\b"
@@ -278,9 +271,10 @@ def makedocs(filenames, o):
     for item in per_family.entries:
         for func in item.functions:
             func_adapter = HtmlManualPageAdapter(func)
-            if o.onlymainheader and not (Match("<"+o.onlymainheader+">")
-                                         & func_adapter.src_mainheader()):
-                    continue
+            if o.onlymainheader and not (
+                Match(f"<{o.onlymainheader}>") & func_adapter.src_mainheader()
+            ):
+                continue
             html.add(func_adapter)
         html.cut()
     html.cut()
@@ -297,9 +291,10 @@ def makedocs(filenames, o):
     for item in per_family.entries:
         for func in item.functions:
             func_adapter = RefEntryManualPageAdapter(func, per_file)
-            if o.onlymainheader and not (Match("<"+o.onlymainheader+">")
-                                         & func_adapter.src_mainheader()):
-                    continue
+            if o.onlymainheader and not (
+                Match(f"<{o.onlymainheader}>") & func_adapter.src_mainheader()
+            ):
+                continue
             man3.add(func_adapter)
         man3.cut()
     man3.cut()

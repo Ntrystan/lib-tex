@@ -13,7 +13,7 @@ f = open(sys.argv[1])
 header = [f.readline () for _ in range(10)]
 
 ranges = OrderedDict()
-for line in f.readlines():
+for line in f:
 	line = line.strip()
 	if not line or line[0] == '#':
 		continue
@@ -43,7 +43,7 @@ print (" *")
 print (" * on file with this header:")
 print (" *")
 for l in header:
-	print (" * %s" % (l.strip()))
+	print(f" * {l.strip()}")
 print (" */")
 print ()
 print ("#ifndef HB_UNICODE_EMOJI_TABLE_HH")
@@ -55,7 +55,9 @@ print ()
 for typ,s in ranges.items():
 	if typ != "Extended_Pictographic": continue
 	print()
-	print("static const struct hb_unicode_range_t _hb_unicode_emoji_%s_table[] =" % typ)
+	print(
+		f"static const struct hb_unicode_range_t _hb_unicode_emoji_{typ}_table[] ="
+	)
 	print("{")
 	for pair in sorted(s):
 		print("  {0x%04X, 0x%04X}," % pair)

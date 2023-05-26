@@ -11,10 +11,13 @@ def warn(msg, error=None):
     global errors
     errors += 1
     if error is None:
-        warnings.warn("-- "+str(errors)+" --\n  "+msg, RuntimeWarning, 2)
+        warnings.warn(f"-- {errors}" + " --\n  " + msg, RuntimeWarning, 2)
     else:
-        warnings.warn("-- "+str(errors)+" --\n  "+msg+
-                      "\n  error was "+str(error), RuntimeWarning, 2)
+        warnings.warn(
+            (f"-- {errors}" + " --\n  " + msg + "\n  error was ") + str(error),
+            RuntimeWarning,
+            2,
+        )
 #fu
 
 # beware, stupid python interprets backslashes in repl only partially!
@@ -119,15 +122,17 @@ def markup_link_syntax(text):
           r"(?mx) (^|\s)\=\>\s([^\s\,\.\!\?\:\;\<\>\&\'\=\-]+)",
           r"\1<link>\2</link>"))
 def this_function_link(text, name):
-    return s(text, r"(?sx) (T|t)his \s (function|procedure) ", lambda x
-             : "<function>"+x.group(1)+"he "+name+" "+x.group(2)+"</function>")
+    return s(
+        text,
+        r"(?sx) (T|t)his \s (function|procedure) ",
+        lambda x: f"<function>{x.group(1)}he {name} {x.group(2)}</function>",
+    )
 
 # -----------------------------------------------------------------------
 class Options:
     var = {}
     def __getattr__(self, name):
-        if not self.var.has_key(name): return None
-        return self.var[name]
+        return None if not self.var.has_key(name) else self.var[name]
     def __setattr__(self, name, value):
         self.var[name] = value
 #end
@@ -148,7 +153,7 @@ if not len(o.package):
     o.package = "_project"
 
 o.suffix = "-doc3"
-o.mainheader = o.package+".h"
+o.mainheader = f"{o.package}.h"
 
 class File:
     def __init__(self, filename):
@@ -159,7 +164,8 @@ class File:
     def __getattr__(self, name):
         """ defend against program to break on uninited members """
         if self.__dict__.has_key(name): return self.__dict__[name]
-        warn("no such member: "+name); return None
+        warn(f"no such member: {name}")
+        return None
     def set_author(self, text):
         if self.authors:
             self.authors += "\n"
@@ -264,13 +270,17 @@ def all_files_comment2section(list):
     for file in list:
         if file.comment is None: continue
         file.section = file_comment2section(file.comment)
-    
+
         file.section = s(
-            file.section, r"(?sx) \b[Aa]uthor\s*:(.*</email>) ", lambda x
-            : "<author>" + file.set_author(x.group(1)) + "</author>")
+            file.section,
+            r"(?sx) \b[Aa]uthor\s*:(.*</email>) ",
+            lambda x: f"<author>{file.set_author(x.group(1))}</author>",
+        )
         file.section = s(
-            file.section, r"(?sx) \b[Cc]opyright\s*:([^<>]*)</para> ",lambda x
-            : "<copyright>" + file.set_copyright(x.group(1)) + "</copyright>")
+            file.section,
+            r"(?sx) \b[Cc]opyright\s*:([^<>]*)</para> ",
+            lambda x: f"<copyright>{file.set_copyright(x.group(1))}</copyright>",
+        )
         # if "file" in file.name: print >> sys.stderr, file.comment # 2.3
     #od
 all_files_comment2section(all.files)
@@ -295,7 +305,8 @@ class Function:
     def __getattr__(self, name):
         """ defend against program exit on members being not inited """
         if self.__dict__.has_key(name): return self.__dict__[name]
-        warn("no such member: "+name); return None
+        warn(f"no such member: {name}")
+        return None
     def dict(self):
         return self.__dict__
     def dict_sorted_keys(self):
@@ -303,8 +314,7 @@ class Function:
         keys.sort()
         return keys
     def parse(self, prototype):
-        found = m(prototype, r"(?sx) ^(.*[^.]) \b(\w[\w.]*\w)\b (\s*\(.*) $ ")
-        if found:
+        if found := m(prototype, r"(?sx) ^(.*[^.]) \b(\w[\w.]*\w)\b (\s*\(.*) $ "):
             self.prespec = found.group(1).lstrip()
             self.namespec = found.group(2)
             self.callspec = found.group(3).lstrip()
@@ -329,7 +339,7 @@ def markup_callspec(text):
             r"(?sx) <paramdef>(\s+) ", r"\1<paramdef>"),
           r"(?sx) (\s+)</paramdef>", r"</paramdef>\1"))
 
-def parse_all_functions(func_list): # list of FunctionDeclarations
+def parse_all_functions(func_list):    # list of FunctionDeclarations
     """ parse all FunctionDeclarations and create a list of Functions """
     list = []
     for func in all.funcs:
@@ -347,7 +357,7 @@ def parse_all_functions(func_list): # list of FunctionDeclarations
             function.body = s(function.body,  r"(?sx)  ^[^\n]*\n",   r"",  1)
         #fi
         if m(function.head, r"(?sx) ^\s*$ "): # empty head line, autofill here
-            function.head = s("("+func.file.name+")", r"[.][.][/]", r"")
+            function.head = s(f"({func.file.name})", r"[.][.][/]", r"")
 
         function.body = func_comment2section(function.body)
         function.src = func # keep a back reference
@@ -382,11 +392,7 @@ examine_head_anchors(function_list)
 # =============================================================== HTML =====
 
 def find_by_name(func_list, name):
-    for func in func_list:
-        if func.name == name:
-            return func
-    #od
-    return None
+    return next((func for func in func_list if func.name == name), None)
 #fu
 
 class HtmlFunction:
@@ -403,46 +409,66 @@ class HtmlFunction:
             "  <td valign=\"top\">&nbsp;&nbsp;</td>\n"+
             "  <td valign=\"top\">"+func.callspec+"</td>\n")
         self.synopsis = paramdef2html(
-            "  <code>"+func.prespec+"</code>\n"+
-            "  <br /><b><code>"+func.namespec+"</code></b>\n"+
-            "   &nbsp; <code>"+func.callspec+"</code>\n")
+            (
+                (
+                    (
+                        (
+                            (
+                                (
+                                    f"  <code>{func.prespec}"
+                                    + "</code>\n"
+                                    + "  <br /><b><code>"
+                                )
+                                + func.namespec
+                            )
+                            + "</code></b>\n"
+                        )
+                        + "   &nbsp; <code>"
+                    )
+                    + func.callspec
+                )
+                + "</code>\n"
+            )
+        )
         self.anchor = "<a name=\""+func.name+"\" />"
-        self.section = "<para><em> &nbsp;"+func.head+"\n"+ \
-                       "\n</em></para>"+section2html(func.body)
+        self.section = (
+            f"<para><em> &nbsp;{func.head}" + "\n" + "\n</em></para>"
+        ) + section2html(func.body)
 #class
 
 class HtmlFunctionFamily(HtmlFunction):
-    def __init__(page, func):
-        HtmlFunction.__init__(page, func)
-        page.toc_line_list = [ page.toc_line ]
+    def __init__(self, func):
+        HtmlFunction.__init__(self, func)
+        self.toc_line_list = [self.toc_line]
         # page.html_txt     = page.synopsis
-        page.synopsis_list = [ page.synopsis ]
-        page.anchor_list   = [ page.anchor ]
-        page.section_list  = [ this_function_link(page.section, func.name) ]
+        self.synopsis_list = [self.synopsis]
+        self.anchor_list = [self.anchor]
+        self.section_list = [this_function_link(self.section, func.name)]
 
 def ensure_name(text, name):
-    adds = "<small><code>"+name+"</code></small> -"
+    adds = f"<small><code>{name}</code></small> -"
     match = r"(?sx) .*>[^<>]*\b" + name + r"\b[^<>]*<.*"
-    found = m(text, match)
-    if found: return text
-    found = m(text, r".*<p(ara)?>.*")
-    if found: return s(text, r"(<p(ara)?>)", r"\1"+adds, 1)
+    if found := m(text, match):
+        return text
+    if found := m(text, r".*<p(ara)?>.*"):
+        return s(text, r"(<p(ara)?>)", r"\1"+adds, 1)
     return adds+text
 
 def combined_html_pages(func_list):
     """ and now add descriptions of non-leader entries (html-mode) """
-    combined = {}
-    
-    for func in func_list: # assemble leader pages
-        if func.into is not None: continue
-        combined[func.name] =  HtmlFunctionFamily(func)
-
+    combined = {
+        func.name: HtmlFunctionFamily(func)
+        for func in func_list
+        if func.into is None
+    }
     for func in func_list: 
         if func.into is None: continue
-        if func.into not in combined :
-            warn(#......... (combine_html_pages) ..............
-                "function '"+func.name+"'s into => '"+func.into+
-                "\n: no such target function: "+func.into)
+        if func.into not in combined:
+            warn(
+                f"function '{func.name}'s into => '{func.into}"
+                + "\n: no such target function: "
+                + func.into
+            )
             combined[func.name] = HtmlFunctionFamily(func)
             continue
         #fi
@@ -460,12 +486,13 @@ html_pages = combined_html_pages(function_list)
 
 def html_resolve_links_on_page(text, list):
     """ link ref-names of a page with its endpoint on the same html page"""
-    def html_link (name , extra):
+    def html_link(name , extra):
         """ make <link>s to <href> of correct target or make it <code> """
         if find_by_name(list, name) is None:
-            return "<code>"+name+extra+"</code>"
+            return f"<code>{name}{extra}</code>"
         else:
             return "<a href=\"#"+name+"\"><code>"+name+extra+"</code></a>"
+
     #fu html_link
     return s(s(text, r"(?sx) <link>(\w+)([^<>]*)<\/link> ",
                lambda x : html_link(x.group(1),x.group(2))),
@@ -480,9 +507,8 @@ class HtmlPage:
         self.version = o.version
     def page_text(self):
         """ render .toc and .txt parts into proper <html> page """
-        T = ""
-        T += "<html><head>"
-        T += "<title>"+self.package+"autodoc documentation </title>"
+        T = "" + "<html><head>"
+        T += f"<title>{self.package}autodoc documentation </title>"
         T += "</head>\n<body>\n"
         T += "\n<h1>"+self.package+" <small><small><i>- "+self.version
         T += "</i></small></small></h1>"
@@ -509,9 +535,7 @@ class HtmlPage:
                          "</p></dd>")
     def add_page_list(self, functions):
         """ generate the index-block at the start of the onepage-html file """
-        mapp = {}
-        for func in functions:
-            mapp[func.name] = func
+        mapp = {func.name: func for func in functions}
         #od
         self.add_page_map(mapp)
 #end
@@ -573,171 +597,201 @@ class RefPage:
             self.seealso_list.append(func.seealso)
         # func.func references
         self.func = func
-        self.file_authors = None
-        if  func.src.file.authors:
-            self.file_authors = func.src.file.authors
+        self.file_authors = func.src.file.authors if func.src.file.authors else None
         self.file_copyright = None
         if  func.src.file.copyright:
             self.file_copyright = func.src.file.copyright
     #fu
-    def refentryinfo_text(page):
+    def refentryinfo_text(self):
         """ the manvol formatter wants to render a footer line and header line
             on each manpage and such info is set in <refentryinfo> """
-        if page.refentryinfo:
-            return page.refentryinfo
-        if page.refentry_date and \
-           page.refentry_productname and \
-           page.refentry_title: return (
-            "\n <date>"+page.refentry_date+"</date>"+ 
-            "\n <productname>"+page.refentry_productname+"</productname>"+
-            "\n <title>"+page.refentry_title+"</title>")
-        if page.refentry_date and \
-           page.refentry_productname: return (
-            "\n <date>"+page.refentry_date+"</date>"+ 
-            "\n <productname>"+page.refentry_productname+"</productname>")
+        if self.refentryinfo:
+            return self.refentryinfo
+        if self.refentry_date and self.refentry_productname:
+            if self.refentry_title:
+                return (
+                    "\n <date>"
+                    + self.refentry_date
+                    + "</date>"
+                    + "\n <productname>"
+                    + self.refentry_productname
+                    + "</productname>"
+                    + "\n <title>"
+                    + self.refentry_title
+                    + "</title>"
+                )
+            return (
+                "\n <date>"
+                + self.refentry_date
+                + "</date>"
+                + "\n <productname>"
+                + self.refentry_productname
+                + "</productname>"
+            )
         return ""
-    def refmeta_text(page):
+    def refmeta_text(self):
         """ the manvol formatter needs to know the filename of the manpage to
             be made up and these parts are set in <refmeta> actually """
-        if page.refmeta:
-            return page.refmeta
-        if page.manvolnum and page.refentrytitle:
-            return (
-                "\n <refentrytitle>"+page.refentrytitle+"</refentrytitle>"+
-                "\n <manvolnum>"+page.manvolnum+"</manvolnum>")
-        if page.manvolnum and page.func.name:
-            return (
-                "\n <refentrytitle>"+page.func.name+"</refentrytitle>"+
-                "\n <manvolnum>"+page.manvolnum+"</manvolnum>")
+        if self.refmeta:
+            return self.refmeta
+        if self.manvolnum:
+            if self.refentrytitle:
+                return (
+                    "\n <refentrytitle>"
+                    + self.refentrytitle
+                    + "</refentrytitle>"
+                    + "\n <manvolnum>"
+                    + self.manvolnum
+                    + "</manvolnum>"
+                )
+            if self.func.name:
+                return (
+                    "\n <refentrytitle>"
+                    + self.func.name
+                    + "</refentrytitle>"
+                    + "\n <manvolnum>"
+                    + self.manvolnum
+                    + "</manvolnum>"
+                )
         return ""
-    def refnamediv_text(page):
+    def refnamediv_text(self):
         """ the manvol formatter prints a header line with a <refpurpose> line
             and <refname>'d functions that are described later. For each of
             the <refname>s listed here, a mangpage is generated, and for each
             of the <refname>!=<refentrytitle> then a symlink is created """
-        if page.refnamediv:
-            return page.refnamediv
-        if page.refpurpose and page.refname:
-            return ("\n <refname>"+page.refname+'</refname>'+
-                    "\n <refpurpose>"+page.refpurpose+" </refpurpose>")
-        if page.refpurpose and page.refname_list:
-            T = ""
-            for refname in page.refname_list:
-                T += "\n <refname>"+refname+'</refname>'
-            T += "\n <refpurpose>"+page.refpurpose+" </refpurpose>"
-            return T
+        if self.refnamediv:
+            return self.refnamediv
+        if self.refpurpose:
+            if self.refname:
+                return (
+                    "\n <refname>"
+                    + self.refname
+                    + '</refname>'
+                    + "\n <refpurpose>"
+                    + self.refpurpose
+                    + " </refpurpose>"
+                )
+            if self.refname_list:
+                T = "".join(
+                    "\n <refname>" + refname + '</refname>'
+                    for refname in self.refname_list
+                )
+                T += "\n <refpurpose>" + self.refpurpose + " </refpurpose>"
+                return T
         return ""
-    def funcsynopsisdiv_text(page):
+    def funcsynopsisdiv_text(self):
         """ refsynopsisdiv shall be between the manvol mangemaent information
             and the reference page description blocks """
         T=""
-        if page.funcsynopsis:
+        if self.funcsynopsis:
             T += "\n<funcsynopsis>"
-            if page.funcsynopsisinfo:
-                T += "\n<funcsynopsisinfo>"+    page.funcsynopsisinfo + \
-                     "\n</funcsynopsisinfo>\n"
-            T += page.funcsynopsis + \
-                 "\n</funcsynopsis>\n"
-        if page.funcsynopsis_list:
+            if self.funcsynopsisinfo:
+                T += (
+                    "\n<funcsynopsisinfo>"
+                    + self.funcsynopsisinfo
+                    + "\n</funcsynopsisinfo>\n"
+                )
+            T += (self.funcsynopsis + "\n</funcsynopsis>\n")
+        if self.funcsynopsis_list:
             T += "\n<funcsynopsis>"
-            if page.funcsynopsisinfo:
-                T += "\n<funcsynopsisinfo>"+    page.funcsynopsisinfo + \
-                     "\n</funcsynopsisinfo>\n"
-            for funcsynopsis in page.funcsynopsis_list:
+            if self.funcsynopsisinfo:
+                T += (
+                    "\n<funcsynopsisinfo>"
+                    + self.funcsynopsisinfo
+                    + "\n</funcsynopsisinfo>\n"
+                )
+            for funcsynopsis in self.funcsynopsis_list:
                 T += funcsynopsis
             T += "\n</funcsynopsis>\n"
         #fi
         return T
-    def description_text(page):
+    def description_text(self):
         """ the description section on a manpage is the main part. Here
             it is generated from the per-function comment area. """
-        if page.description:
-            return page.description
-        if page.description_list:
-            T = ""
-            for description in page.description_list:
-                if not description: continue
-                T += description
-            if T: return T
+        if self.description:
+            return self.description
+        if self.description_list:
+            if T := "".join(
+                description for description in self.description_list if description
+            ):
+                return T
         return ""
-    def authors_text(page):
+    def authors_text(self):
         """ part of the footer sections on a manpage and a description of
             original authors. We prever an itimizedlist to let the manvol
             show a nice vertical aligment of authors of this ref item """
-        if page.authors:
-            return page.authors
-        if page.authors_list:
+        if self.authors:
+            return self.authors
+        if self.authors_list:
             T = "<itemizedlist>"
             previous=""
-            for authors in page.authors_list:
+            for authors in self.authors_list:
                 if not authors: continue
                 if previous == authors: continue
                 T += "\n <listitem><para>"+authors+"</para></listitem>"
                 previous = authors
             T += "</itemizedlist>"
             return T
-        if page.authors:
-            return page.authors
-        return ""
-    def copyright_text(page):
+        return self.authors if self.authors else ""
+    def copyright_text(self):
         """ the copyright section is almost last on a manpage and purely
             optional. We list the part of the per-file copyright info """
-        if page.copyright:
-            return page.copyright
+        if self.copyright:
+            return self.copyright
         """ we only return the first valid instead of merging them """
-        if page.copyright_list:
+        if self.copyright_list:
             T = ""
-            for copyright in page.copyright_list:
+            for copyright in self.copyright_list:
                 if not copyright: continue
                 return copyright # !!!
         return ""
-    def seealso_text(page):
+    def seealso_text(self):
         """ the last section on a manpage is called 'SEE ALSO' usually and
             contains a comma-separated list of references. Some manpage
             viewers can parse these and convert them into hyperlinks """
-        if page.seealso:
-            return page.seealso
-        if page.seealso_list:
+        if self.seealso:
+            return self.seealso
+        if self.seealso_list:
             T = ""
-            for seealso in page.seealso_list:
+            for seealso in self.seealso_list:
                 if not seealso: continue
                 if T: T += ", "
                 T += seealso
             if T: return T
         return ""
-    def refentry_text(page, id=None):
+    def refentry_text(self, id=None):
         """ combine fields into a proper docbook refentry """
         if id is None:
-            id = page.refentry
-        if id:
-            T = '<refentry id="'+id+'">'
-        else:
-            T = '<refentry>' # this is an error
-           
-        if page.refentryinfo_text():
-            T += "\n<refentryinfo>"+       page.refentryinfo_text()+ \
-                 "\n</refentryinfo>\n"
-        if page.refmeta_text():
-            T += "\n<refmeta>"+            page.refmeta_text() + \
-                 "\n</refmeta>\n" 
-        if page.refnamediv_text():
-            T += "\n<refnamediv>"+         page.refnamediv_text() + \
-                 "\n</refnamediv>\n"
-        if page.funcsynopsisdiv_text():     
-            T += "\n<refsynopsisdiv>\n"+   page.funcsynopsisdiv_text()+ \
-                 "\n</refsynopsisdiv>\n"
-        if page.description_text():
-            T += "\n<refsect1><title>Description</title> " + \
-                 page.description_text() + "\n</refsect1>"
-        if page.authors_text():
-            T += "\n<refsect1><title>Author</title> " + \
-                 page.authors_text() + "\n</refsect1>"
-        if page.copyright_text():
-            T += "\n<refsect1><title>Copyright</title> " + \
-                 page.copyright_text() + "\n</refsect1>\n"
-        if page.seealso_text():
-            T += "\n<refsect1><title>See Also</title><para> " + \
-                 page.seealso_text() + "\n</para></refsect1>\n"
+            id = self.refentry
+        T = f'<refentry id="{id}">' if id else '<refentry>'
+        if self.refentryinfo_text():
+            T += ("\n<refentryinfo>" + self.refentryinfo_text() + "\n</refentryinfo>\n")
+        if self.refmeta_text():
+            T += ("\n<refmeta>" + self.refmeta_text() + "\n</refmeta>\n")
+        if self.refnamediv_text():
+            T += ("\n<refnamediv>" + self.refnamediv_text() + "\n</refnamediv>\n")
+        if self.funcsynopsisdiv_text(): 
+            T += (
+                "\n<refsynopsisdiv>\n"
+                + self.funcsynopsisdiv_text()
+                + "\n</refsynopsisdiv>\n"
+            )
+        if self.description_text():
+            T += (
+                "\n<refsect1><title>Description</title> " + self.description_text()
+            ) + "\n</refsect1>"
+        if self.authors_text():
+            T += (
+                "\n<refsect1><title>Author</title> " + self.authors_text()
+            ) + "\n</refsect1>"
+        if self.copyright_text():
+            T += (
+                "\n<refsect1><title>Copyright</title> " + self.copyright_text()
+            ) + "\n</refsect1>\n"
+        if self.seealso_text():
+            T += (
+                "\n<refsect1><title>See Also</title><para> " + self.seealso_text()
+            ) + "\n</para></refsect1>\n"
 
         T +=  "\n</refentry>\n"
         return T
@@ -770,6 +824,7 @@ class FunctionRefPage(RefPage):
                          r"\)\s*</parameters>",r" "),
                        r"</paramdef>\s*,\s*",r"</paramdef>\n ")+
                 " </funcprototype>")
+
         page.funcsynopsis = funcsynopsis_of(page.func)
 
         page.description = (
@@ -777,8 +832,9 @@ class FunctionRefPage(RefPage):
 
         if page.file_authors:
             def add_authors(page, ename, email):
-                page.authors_list.append( ename+' '+email )
+                page.authors_list.append(f'{ename} {email}')
                 return ename+email
+
             s(page.file_authors,
               r"(?sx) \s* ([^<>]*) (<email>[^<>]*</email>) ", lambda x
               : add_authors(page, x.group(1), x.group(2)))
@@ -788,23 +844,22 @@ class FunctionRefPage(RefPage):
             page.copyright = "<screen>\n"+page.file_copyright+"</screen>\n"
         #fi
         return page
-    def __init__(page,func):
-        RefPage.__init__(page, func)
-        FunctionRefPage.reinit(page)
+    def __init__(self, func):
+        RefPage.__init__(self, func)
+        FunctionRefPage.reinit(self)
     
 def refpage_list_from_function_list(funclist):
     list = []
-    mapp = {}
-    for func in funclist:
-        mapp[func.name] = func
+    mapp = {func.name: func for func in funclist}
     #od
     for func in funclist:
         page = FunctionRefPage(func)
         if func.into and func.into not in mapp:
-            warn (# ............ (refpage_list_from_function_list) .......
-                "page '"+page.func.name+"' has no target => "+
-                "'"+page.func.into+"'"
-                "\n: going to reset .into of Function '"+page.func.name+"'")
+            warn(
+                f"page '{page.func.name}' has no target => '{page.func.into}"
+                + "'"
+                "\n: going to reset .into of Function '" + page.func.name + "'"
+            )
             func.into = None
         #fi
         list.append(FunctionRefPage(func))
@@ -819,14 +874,10 @@ class FunctionFamilyRefPage(RefPage):
         RefPage.__init__(self, page.func)
         self.seealso_list = [] # reset
         self.refhint_list = []
-    def refhint_list_text(page):
-        T = ""
-        for hint in page.refhint_list:
-            T += hint
-        return T
-    def refentry_text(page):
-        return page.refhint_list_text() + "\n" + \
-               RefPage.refentry_text(page)
+    def refhint_list_text(self):
+        return "".join(self.refhint_list)
+    def refentry_text(self):
+        return (self.refhint_list_text() + "\n" + RefPage.refentry_text(self))
     pass
 
 def docbook_pages_recombine(pagelist):
@@ -881,8 +932,7 @@ def docbook_pages_recombine(pagelist):
     for orig in pagelist:
         if not orig.func.into: continue
         if orig.func.into not in combined:
-            warn("page for '"+orig.func.name+
-                 "' has no target => '"+orig.func.into+"'")
+            warn(f"page for '{orig.func.name}' has no target => '{orig.func.into}'")
             page = FunctionFamilyRefPage(orig)
         else:
             page = combined[orig.func.into]
@@ -934,14 +984,12 @@ def docbook_refpages_perheader(page_list): # headerlist
             header[file].refentry = header[file].id
             header[file].refentryinfo = None
             header[file].refentry_date = page.refentry_date
-            header[file].refentry_productname = (
-                "the library "+page.refentry_productname)
+            header[file].refentry_productname = f"the library {page.refentry_productname}"
             header[file].manvolnum = page.manvolnum
             header[file].refentrytitle = file
             header[file].funcsynopsis = ""
-        if 1: # or += or if not header[file].refnamediv:
-            header[file].refpurpose = " library "
-            header[file].refname = header[file].id
+        header[file].refpurpose = " library "
+        header[file].refname = header[file].id
 
         if not header[file].funcsynopsisinfo and page.funcsynopsisinfo:
             header[file].funcsynopsisinfo  = page.funcsynopsisinfo
@@ -954,25 +1002,21 @@ def docbook_refpages_perheader(page_list): # headerlist
         if not header[file].authors and page.authors_list:
             header[file].authors_list = page.authors_list
         if not header[file].description:
-            found = m(commands.getoutput("cat "+o.package+".spec"),
-                      r"(?s)\%description\b([^\%]*)\%")
-            if found:
+            if found := m(
+                commands.getoutput(f"cat {o.package}.spec"),
+                r"(?s)\%description\b([^\%]*)\%",
+            ):
                 header[file].description = found.group(1)
             elif not header[file].description:
-                header[file].description = "<para>" + (
-                    page.refentry_productname + " library") + "</para>";
+                header[file].description = f"<para>{page.refentry_productname} library</para>";
+                    #fi
             #fi
-        #fi
     #od
     return header#list
 #fu
 
 def leaders(pagelist):
-    list = []
-    for page in pagelist:
-        if page.func.into : continue
-        list.append(page)
-    return list
+    return [page for page in pagelist if not page.func.into]
 header_refpages = docbook_refpages_perheader(leaders(refpage_list))
 
 # -----------------------------------------------------------------------

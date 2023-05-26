@@ -20,7 +20,7 @@ def funcOnList(list1: ty.Union[ty.List, ty.Tuple], list2: ty.Union[ty.List, ty.T
     and x and y as list1 and 2. """
 
     assert len(list1) == len(list2)
-    return tuple([func(list1[i], list2[i]) for i in range(len(list1))]) 
+    return tuple(func(list1[i], list2[i]) for i in range(len(list1))) 
 
 
 def listize(str, typ, delim='()') -> list:
@@ -29,14 +29,10 @@ def listize(str, typ, delim='()') -> list:
     final_list = []
     if isinstance(typ, (list, tuple)):
         for i in range(len(raw_elem)):
-            if i < len(typ):
-                curr_typ = typ[i]
-            else:
-                curr_typ = typ[-1]
+            curr_typ = typ[i] if i < len(typ) else typ[-1]
             final_list.append(curr_typ(raw_elem[i].strip()))
     else:
-        for elem in raw_elem:
-            final_list.append(typ(elem.strip()))
+        final_list.extend(typ(elem.strip()) for elem in raw_elem)
     return final_list
 
 def twonorm(vec: ty.Iterable[ty.Union[float, int]]) -> float:

@@ -332,29 +332,20 @@ def update_changelog(newver,upgradetype):
                     print("Found an unreleased develop section.")
                     print("Patch releases should be based on ctan branch.")
                     sys.exit(1)
+                result.append(line)
                 if '[Unreleased][CTAN]' in line:
-                    result.append(line)
-                    result.append('\n')
-                    result.append('\n')
-                    newline = '## [' + newver + '] - ' + today.strftime("%Y-%m-%d") + '\n'
+                    result.extend(('\n', '\n'))
+                    newline = f'## [{newver}] - ' + today.strftime("%Y-%m-%d") + '\n'
                     result.append(newline)
-                else:
-                    result.append(line)
+            elif '[Unreleased][develop]' in line:
+                develop = True
+                result.extend((line, '\n', '\n', '## [Unreleased][CTAN]\n', '\n', '\n'))
+                newline = f'## [{newver}] - ' + today.strftime("%Y-%m-%d") + '\n'
+                result.append(newline)
+            elif '[Unreleased][CTAN]' in line and develop:
+                continue
             else:
-                if '[Unreleased][develop]' in line:
-                    develop = True
-                    result.append(line)
-                    result.append('\n')
-                    result.append('\n')
-                    result.append('## [Unreleased][CTAN]\n')
-                    result.append('\n')
-                    result.append('\n')
-                    newline = '## [' + newver + '] - ' + today.strftime("%Y-%m-%d") + '\n'
-                    result.append(newline)
-                elif '[Unreleased][CTAN]' in line and develop:
-                    continue
-                else:
-                    result.append(line)
+                result.append(line)
         if not develop and upgradetype != "patch":
             print("I didn't find a unreleased develop section.")
             print("Non-patch releases should be based on develop branch.")
@@ -411,7 +402,7 @@ def bump_major(version_obj, not_interactive):
     "Changed the major version number: x.y.z --> x+1.0.0-beta1"
     oldversion = version_obj.version
     nums = re.search(r'(\d+)(\.\d+)(\.\d+)', oldversion)
-    newversion = str(int(nums.group(1)) +1) + '.0.0-beta1'
+    newversion = f'{str(int(nums[1]) + 1)}.0.0-beta1'
     if (not not_interactive):
         confirm_replace(oldversion, newversion)
     update_changelog(newversion,"major")
@@ -422,7 +413,7 @@ def bump_minor(version_obj, not_interactive):
     "Changed the minor version number: x.y.z --> x.y+1.0-beta1"
     oldversion = version_obj.version
     nums = re.search(r'(\d+\.)(\d+)(\.\d+)', oldversion)
-    newversion = nums.group(1) + str(int(nums.group(2)) +1) + '.0-beta1'
+    newversion = nums[1] + str(int(nums[2]) + 1) + '.0-beta1'
     if (not not_interactive):
         confirm_replace(oldversion, newversion)
     update_changelog(newversion,"minor")
@@ -433,7 +424,7 @@ def bump_patch(version_obj, not_interactive):
     "Changed the patch version number: x.y.z --> x.y.z+1"
     oldversion = version_obj.version
     nums = re.search(r'(\d+\.\d+\.)(\d+)', oldversion)
-    newversion = nums.group(1) + str(int(nums.group(2)) +1)
+    newversion = nums[1] + str(int(nums[2]) + 1)
     if (not not_interactive):
         confirm_replace(oldversion, newversion)
     update_changelog(newversion,"patch")
@@ -470,7 +461,7 @@ def copyright_year():
         "Check and add a year range to the copyright"
         if matchobj.group(1) is not None:
             return re.sub(fileyear, CURRENTYEAR, matchobj.group(0))
-        return re.sub(fileyear, fileyear+'-'+CURRENTYEAR, matchobj.group(0))
+        return re.sub(fileyear, f'{fileyear}-{CURRENTYEAR}', matchobj.group(0))
 
     if int(fileyear) != int(CURRENTYEAR):
         print('Updating copyright year.')
@@ -499,9 +490,7 @@ def main():
         sys.exit(1)
     args = parser.parse_args()
     gregorio_version = Version(VERSION_FILE)
-    not_interactive = False
-    if args.not_interactive:
-        not_interactive = True
+    not_interactive = bool(args.not_interactive)
     if args.get_current:
         gregorio_version.fetch_version()
     elif args.get_debian_stable:

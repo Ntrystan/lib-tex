@@ -13,13 +13,13 @@ class asy:
 	def size(self, size):
 		self.send("size(%d);" % size)
 	def draw(self, str):
-		self.send("draw(%s);" % str)
+		self.send(f"draw({str});")
 	def fill(self, str):
-		self.send("fill(%s);" % str)
+		self.send(f"fill({str});")
 	def clip(self, str):
-		self.send("clip(%s);" % str)
+		self.send(f"clip({str});")
 	def label(self, str):
-		self.send("label(%s);" % str)
+		self.send(f"label({str});")
 	def shipout(self, str):
 		self.send("shipout(\"%s\");" % str)
 	def erase(self):

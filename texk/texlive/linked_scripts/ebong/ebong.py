@@ -166,55 +166,47 @@ def blocked(line):
     #print '@ blocked', line , '->',
     m = sre.findall('@[^@]+@',line)
     outline = line
-    if not m :
-        #print  outline
-        return(outline)
-    else:
+    if m:
         for i in range(len(m)):
             s=m[i][:-1].replace(' ','%X%')
             outline = outline.replace(m[i],s,1)
-        #print outline
-        return(outline)
+    #print  outline
+    return(outline)
 
 def unblock(line):
     #print '@unblock', line, '->',
     m = sre.findall('@[^\s]+',line)
     outline = line
-    if not m :
-        #print outline
-        return(outline)
-    else:
+    if m:
         for i in range(len(m)):
             s=m[i].replace('@','').replace('%X%',' ')
             outline = outline.replace(m[i],s)
-        #print outline
-        return(outline)
+    #print outline
+    return(outline)
 
 def printamp(line):
     #print '@unblock', line, '->',
     m = sre.findall('#AT',line)
     outline = line
-    if not m :
-        #print outline
-        return(outline)
-    else:
-        for i in range(len(m)):
+    if m:
+        for _ in range(len(m)):
             outline = outline.replace('#AT','@')
-        #print outline
-        return(outline)
+    #print outline
+    return(outline)
 
-def  readsyll(syll):
+def readsyll(syll):
     syllparts=[]
-    start = 0; end = len(syll)
+    start = 0
+    end = len(syll)
     while syll[start : end]:
-	slice = syll[start : end]
-	#print slice
-	if AKSAR.has_key(slice):
-		syllparts.append(AKSAR[slice])
-		start = start + len(slice)
-		end = len(syll)
-	else :
-		end = end -1
+        slice = syll[start : end]
+        	#print slice
+        if AKSAR.has_key(slice):
+            syllparts.append(AKSAR[slice])
+            start += len(slice)
+            end = len(syll)
+        else:
+            end -= 1
     return(syllparts)
 
 def fuse(list1,list2):
@@ -296,7 +288,7 @@ def fuseline(line):
         CWORD=word
         theword=fuseword(word)
         #print 'XX',theword
-        l0=l0+' '+theword
+        l0 = f'{l0} {theword}'
     #print 'FUSED LINE', l0
     return(l0)
 

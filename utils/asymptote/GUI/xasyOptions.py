@@ -64,11 +64,11 @@ class xasyOptions:
             if os.path.isfile(currentFile):
                 found = True
             searchIndex += 1
-        
+
         if found:
             return os.path.normcase(currentFile)
         else:
-            return os.path.normcase(os.path.join(folder, self.configName + '.cson'))
+            return os.path.normcase(os.path.join(folder, f'{self.configName}.cson'))
 
     def __init__(self, configName, defaultConfigLocation):
         self.configName = configName
@@ -123,11 +123,8 @@ class xasyOptions:
 
     def setDefaults(self):
         self.options = self.defaultOptions()
-        if sys.platform[:3] == 'win':  # for windows, wince, win32, etc
-            # setAsyPathFromWindowsRegistry()
-            pass
         folder = os.path.expanduser("~/.asy/")
-        defaultPath = os.path.join(folder, self.configName + '.cson')
+        defaultPath = os.path.join(folder, f'{self.configName}.cson')
         shutil.copy2(self._defualtOptLocation, defaultPath)
         
 

@@ -67,31 +67,30 @@ class HtmlDocument:
                 pass
         return None
     def html_header(self):
-        navi = self.navigation()
-        if not navi:
-            T = "<html><head>"
+        if navi := self.navigation():
             title = self.get_title()
-            if title:
-                T += "<title>"+title+"</title>"
+            return (
+                navi
+                & Match(r"<!--title-->") >> f" - {title}"
+                & Match(r"<!--VERSION-->") >> self.o.version
+                & Match(r"(?m).*</body></html>") >> ""
+            )
+        else:
+            T = "<html><head>"
+            if title := self.get_title():
+                T += f"<title>{title}</title>"
             T += "\n"
             for style in self.style:
                 T += self._html_style(style)
                 T += "\n"
-            return T+"</head><body>"
-        else:
-            title = self.get_title()
-            return navi & (
-                Match(r"<!--title-->") >> " - "+title) & (
-                Match(r"<!--VERSION-->") >> self.o.version) & (
-                Match(r"(?m).*</body></html>") >> "")
+            return f"{T}</head><body>"
     def html_footer(self):
-        navi = self.navigation()
-        if not navi:
-            return "</body></html>"
-        else:
+        if navi := self.navigation():
             return navi & (
                 Match(r"(?m)(.*</body></html>)") >> "%&%&%&%\\1") & (
                 Match(r"(?s).*%&%&%&%") >> "")
+        else:
+            return "</body></html>"
     def _filename(self, filename):
         if filename is not None:
             self.filename = filename
@@ -99,7 +98,7 @@ class HtmlDocument:
         if not filename & Match(r"\.\w+$"):
             ext = self.o.html
             if not ext: ext = "html"
-            filename += "."+ext
+            filename += f".{ext}"
         return filename
     def save(self, filename = None):
         filename = self._filename(filename)

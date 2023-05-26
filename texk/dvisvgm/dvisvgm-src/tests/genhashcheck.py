@@ -7,7 +7,7 @@
 import re
 import sys
 
-def extract_hashes (fname):
+def extract_hashes(fname):
     with open(fname) as f:
         lines = f.readlines()
         found = False
@@ -15,10 +15,12 @@ def extract_hashes (fname):
             if ' hash2unicode {{\n' in line:
                 found = True
             elif found:
-                match = re.match(r'\s*{(0x[0-9a-f]{8}),\s*0x[0-9a-f]{4}}, //\s*(.+)\s*$', line)
-                if match:
-                    hashval = match.group(1)
-                    name = match.group(2)
+                if match := re.match(
+                    r'\s*{(0x[0-9a-f]{8}),\s*0x[0-9a-f]{4}}, //\s*(.+)\s*$',
+                    line,
+                ):
+                    hashval = match[1]
+                    name = match[2]
                     print('\t{}{}, "{}"{},'.format('{', hashval, name, '}'))
                 else:
                     found = False

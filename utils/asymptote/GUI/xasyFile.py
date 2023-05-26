@@ -35,12 +35,11 @@ def extractTransform(line):
         mapOnlyMatch = re.match(r'^{0:s}\s*\(\s *\"([^\"]+)\"\s*\)'.format(mapString), line.strip())
         if mapOnlyMatch is None:
             return None
-        else:
-            key = mapOnlyMatch.group(1)
-            return key, x2a.identity()
+        key = mapOnlyMatch[1]
+        return key, x2a.identity()
     else:
-        key = testMatch.group(1)
-        rawStr = testMatch.group(2)
+        key = testMatch[1]
+        rawStr = testMatch[2]
         rawStrArray = rawStr.split(',')
 
         if len(rawStrArray) != 6:
@@ -67,7 +66,7 @@ def extractTransformsFromFile(fileStr):
 
                 testNum = re.match(r'^x(\d+)($|:.*$)', key)
                 if testNum is not None:
-                    maxItemCount = max(maxItemCount, int(testNum.group(1)))
+                    maxItemCount = max(maxItemCount, int(testNum[1]))
         final_str = rawCode.getvalue()
     return final_str, transfDict, maxItemCount
 
@@ -80,4 +79,7 @@ def saveFile(file, xasyItems, asy2psmap):
     for item in xasyItems:
         file.write(item.getObjectCode(asy2psmap))
 
-    file.write('size('+str(asy2psmap*x2a.yflip())+'); '+ x2a.xasyItem.resizeComment+'\n')
+    file.write(
+        f'size({str(asy2psmap * x2a.yflip())}); {x2a.xasyItem.resizeComment}'
+        + '\n'
+    )

@@ -14,11 +14,13 @@ BLACKLISTED_BLOCKS = ["Thai", "Lao"]
 
 files = [io.open (x, encoding='utf-8') for x in sys.argv[1:]]
 
-headers = [[f.readline () for i in range (2)] for j,f in enumerate(files) if j != 2]
+headers = [
+	[f.readline() for _ in range(2)] for j, f in enumerate(files) if j != 2
+]
 headers.append (["UnicodeData.txt does not have a header."])
 
-data = [{} for f in files]
-values = [{} for f in files]
+data = [{} for _ in files]
+values = [{} for _ in files]
 for i, f in enumerate (files):
 	for line in f:
 
@@ -32,11 +34,7 @@ for i, f in enumerate (files):
 
 		uu = fields[0].split ('..')
 		start = int (uu[0], 16)
-		if len (uu) == 1:
-			end = start
-		else:
-			end = int (uu[1], 16)
-
+		end = start if len (uu) == 1 else int (uu[1], 16)
 		t = fields[1 if i != 2 else 2]
 
 		for u in range (start, end + 1):
@@ -63,9 +61,9 @@ for i,v in enumerate (defaults):
 combined = {}
 for i,d in enumerate (data):
 	for u,v in d.items ():
-		if i >= 2 and not u in combined:
+		if i >= 2 and u not in combined:
 			continue
-		if not u in combined:
+		if u not in combined:
 			combined[u] = list (defaults)
 		combined[u][i] = v
 combined = {k:v for k,v in combined.items() if v[3] not in BLACKLISTED_BLOCKS}
@@ -171,10 +169,22 @@ def is_BASE(U, UISC, UGC):
 					Consonant_Subjoined, Vowel, Vowel_Dependent]))
 def is_BASE_IND(U, UISC, UGC):
 	#SPEC-DRAFT return (UISC in [Consonant_Dead, Modifying_Letter] or UGC == Po)
-	return (UISC in [Consonant_Dead, Modifying_Letter] or
-		(UGC == Po and not U in [0x104B, 0x104E, 0x2022, 0x111C8, 0x11A3F, 0x11A45, 0x11C44, 0x11C45]) or
-		False # SPEC-DRAFT-OUTDATED! U == 0x002D
-		)
+	return (
+		UISC in [Consonant_Dead, Modifying_Letter]
+		or UGC == Po
+		and U
+		not in [
+			0x104B,
+			0x104E,
+			0x2022,
+			0x111C8,
+			0x11A3F,
+			0x11A45,
+			0x11C44,
+			0x11C45,
+		]
+		or False
+	)
 def is_BASE_NUM(U, UISC, UGC):
 	return UISC == Brahmi_Joining_Number
 def is_BASE_OTHER(U, UISC, UGC):
@@ -227,9 +237,7 @@ def is_Reserved(U, UISC, UGC):
 def is_REPHA(U, UISC, UGC):
 	return UISC in [Consonant_Preceding_Repha, Consonant_Prefixed]
 def is_SYM(U, UISC, UGC):
-	if U == 0x25CC: return False #SPEC-DRAFT
-	#SPEC-DRAFT return UGC in [So, Sc] or UISC == Symbol_Letter
-	return UGC in [So, Sc]
+	return False if U == 0x25CC else UGC in [So, Sc]
 def is_SYM_MOD(U, UISC, UGC):
 	return U in [0x1B6B, 0x1B6C, 0x1B6D, 0x1B6E, 0x1B6F, 0x1B70, 0x1B71, 0x1B72, 0x1B73]
 def is_VARIATION_SELECTOR(U, UISC, UGC):
@@ -362,7 +370,7 @@ def map_to_use(data):
 		if U == 0x111C9: UISC = Consonant_Final
 
 		values = [k for k,v in items if v(U,UISC,UGC)]
-		assert len(values) == 1, "%s %s %s %s" % (hex(U), UISC, UGC, values)
+		assert len(values) == 1, f"{hex(U)} {UISC} {UGC} {values}"
 		USE = values[0]
 
 		# Resolve Indic_Positional_Category
@@ -389,13 +397,13 @@ def map_to_use(data):
 		# https://github.com/roozbehp/unicode-data/issues/8
 		if U == 0x0A51: UIPC = Bottom
 
-		assert (UIPC in [Not_Applicable, Visual_Order_Left] or
-			USE in use_positions), "%s %s %s %s %s" % (hex(U), UIPC, USE, UISC, UGC)
+		assert (
+			UIPC in [Not_Applicable, Visual_Order_Left] or USE in use_positions
+		), f"{hex(U)} {UIPC} {USE} {UISC} {UGC}"
 
-		pos_mapping = use_positions.get(USE, None)
-		if pos_mapping:
+		if pos_mapping := use_positions.get(USE, None):
 			values = [k for k,v in pos_mapping.items() if v and UIPC in v]
-			assert len(values) == 1, "%s %s %s %s %s %s" % (hex(U), UIPC, USE, UISC, UGC, values)
+			assert len(values) == 1, f"{hex(U)} {UIPC} {USE} {UISC} {UGC} {values}"
 			USE = USE + values[0]
 
 		out[U] = (USE, UBlock)
@@ -414,7 +422,7 @@ print (" * on files with these headers:")
 print (" *")
 for h in headers:
 	for l in h:
-		print (" * %s" % (l.strip()))
+		print(f" * {l.strip()}")
 print (" */")
 print ()
 print ('#include "hb-ot-shape-complex-use.hh"')
@@ -423,12 +431,12 @@ print ()
 total = 0
 used = 0
 last_block = None
-def print_block (block, start, end, data):
+def print_block(block, start, end, data):
 	global total, used, last_block
 	if block and block != last_block:
 		print ()
 		print ()
-		print ("  /* %s */" % block)
+		print(f"  /* {block} */")
 		if start % 16:
 			print (' ' * (20 + (start % 16 * 6)), end='')
 	num = 0
@@ -507,7 +515,7 @@ print ("hb_use_get_category (hb_codepoint_t u)")
 print ("{")
 print ("  switch (u >> %d)" % page_bits)
 print ("  {")
-pages = set([u>>page_bits for u in starts+ends])
+pages = {u>>page_bits for u in starts+ends}
 for p in sorted(pages):
 	print ("    case 0x%0Xu:" % p)
 	for (start,end) in zip (starts, ends):
@@ -524,12 +532,12 @@ print ("}")
 print ()
 for k in sorted(use_mapping.keys()):
 	if k in use_positions and use_positions[k]: continue
-	print ("#undef %s" % k)
+	print(f"#undef {k}")
 for k,v in sorted(use_positions.items()):
 	if not v: continue
 	for suf in v.keys():
 		tag = k + suf
-		print ("#undef %s" % tag)
+		print(f"#undef {tag}")
 print ()
 print ("/* == End of generated table == */")
 

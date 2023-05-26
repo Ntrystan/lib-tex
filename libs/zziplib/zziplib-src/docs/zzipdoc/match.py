@@ -63,7 +63,7 @@ class Match(str):
         self.pattern = pattern
         if pattern is not None:
             if flags:
-                self.regex = re.compile("(?"+flags+")"+self.pattern)
+                self.regex = re.compile(f"(?{flags}){self.pattern}")
             else:
                 self.regex = re.compile(self.pattern)
         return self

@@ -21,8 +21,7 @@ class TextFile:
             pass
         return False
     def assert_src_text(self):
-        if self.src_text: return True
-        return self.parse()
+        return True if self.src_text else self.parse()
     def assert_xml_text(self):
         if self.xml_text: return True
         if not self.assert_src_text(): return False
@@ -40,10 +39,6 @@ class TextFile:
     def line_src_text(self, offset):
         self._line(self.src_text, offset)
     def _line(self, text, offset):
-        line = 1
-        for x in xrange(0,offset):
-            if x == "\n":
-                line += 1
-        return line
+        return 1 + sum(1 for x in xrange(0,offset) if x == "\n")
             
 

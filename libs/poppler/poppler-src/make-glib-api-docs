@@ -50,17 +50,25 @@ pkgconfig_file = os.path.join(args.build_dir, 'poppler-glib.pc')
 pkgconfig_path = os.environ.get("PKG_CONFIG_PATH")
 os.environ['PKG_CONFIG_PATH'] = args.build_dir
 if pkgconfig_path:
-    os.environ['PKG_CONFIG_PATH'] += ':' + pkgconfig_path
+    os.environ['PKG_CONFIG_PATH'] += f':{pkgconfig_path}'
 
-gtkdoc = PkgConfigGTKDoc(pkgconfig_file, {
-    'library_path': os.path.join(args.build_dir, 'glib'),
-    'module_name': 'poppler',
-    'doc_dir': os.path.join(args.src_dir, 'glib', 'reference'),
-    'output_dir': os.path.join(args.build_dir, 'glib', 'reference'),
-    'main_sgml_file': 'poppler-docs.sgml',
-    'source_dirs': [os.path.join(args.src_dir, 'glib')],
-    'cflags': '-I%s' % os.path.join(args.src_dir, 'glib'),
-    'ignored_files': ['poppler-private.h', 'poppler-input-stream.h', 'poppler-cached-file-loader.h', 'demo']
-})
+gtkdoc = PkgConfigGTKDoc(
+    pkgconfig_file,
+    {
+        'library_path': os.path.join(args.build_dir, 'glib'),
+        'module_name': 'poppler',
+        'doc_dir': os.path.join(args.src_dir, 'glib', 'reference'),
+        'output_dir': os.path.join(args.build_dir, 'glib', 'reference'),
+        'main_sgml_file': 'poppler-docs.sgml',
+        'source_dirs': [os.path.join(args.src_dir, 'glib')],
+        'cflags': f"-I{os.path.join(args.src_dir, 'glib')}",
+        'ignored_files': [
+            'poppler-private.h',
+            'poppler-input-stream.h',
+            'poppler-cached-file-loader.h',
+            'demo',
+        ],
+    },
+)
 
 gtkdoc.generate(not args.skip_html)

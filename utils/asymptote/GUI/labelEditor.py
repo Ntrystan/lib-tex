@@ -53,18 +53,17 @@ class labelEditor(Qw.QDialog):
     def getText(self):
         rawText = self.ui.txtLabelEdit.toPlainText()
         rawText.replace('\n', ' ')
-        if self.ui.chkMathMode.isChecked():
-            prefix = ''
-            suffix = ''
-            if self.ui.cmbMathStyle.currentText() == 'Display Style':
-                prefix = '\\displaystyle{'
-                suffix = '}'
-            elif self.ui.cmbMathStyle.currentText() == 'Script Style':
-                prefix = '\\scriptstyle{'
-                suffix = '}'
-            return '${0}{1}{2}$'.format(prefix, rawText, suffix)
-        else:
+        if not self.ui.chkMathMode.isChecked():
             return rawText
+        prefix = ''
+        suffix = ''
+        if self.ui.cmbMathStyle.currentText() == 'Display Style':
+            prefix = '\\displaystyle{'
+            suffix = '}'
+        elif self.ui.cmbMathStyle.currentText() == 'Script Style':
+            prefix = '\\scriptstyle{'
+            suffix = '}'
+        return '${0}{1}{2}$'.format(prefix, rawText, suffix)
 
     def btnPreviewOnClick(self):
         path = xa.getArgs().asypath
@@ -108,9 +107,7 @@ class labelEditor(Qw.QDialog):
     def drawPreview(self, naturalBounds):
         img = Qg.QPixmap(self.ui.lblLabelPreview.size())
         img.fill(Qg.QColor.fromRgbF(1, 1, 1, 1))
-        if self.svgPreview is None:
-            pass
-        else:
+        if self.svgPreview is not None:
             with Qg.QPainter(img) as pnt:
                 scale_ratio = self.getIdealScaleRatio(naturalBounds, self.ui.lblLabelPreview.rect())
 
@@ -130,10 +127,9 @@ class labelEditor(Qw.QDialog):
 
         if idealRatioHeight * rect.width() > magicRatioWidth * boundsRect.width():
             idealRatioWidth = (magicRatioWidth * boundsRect.width()) / rect.width()
-            idealRatio = min(idealRatioHeight, idealRatioWidth)
+            return min(idealRatioHeight, idealRatioWidth)
         else:
-            idealRatio = idealRatioHeight
-        return idealRatio
+            return idealRatioHeight
 
     def processBounds(self, minPt, maxPt):
         p1x, p1y = minPt
@@ -142,8 +138,7 @@ class labelEditor(Qw.QDialog):
         minPt = Qc.QPointF(p1x, p1y)
         maxPt = Qc.QPointF(p2x, p2y)
 
-        newRect = Qc.QRectF(minPt, maxPt)
-        return newRect
+        return Qc.QRectF(minPt, maxPt)
 
 
     def btnGetTextOnClick(self):

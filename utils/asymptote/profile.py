@@ -86,10 +86,7 @@ profile = rawdata.profile
 computeTotals(profile)
 names = funcNames(profile)
 
-funcs = {}
-for name in names:
-    funcs[name] = Func()
-
+funcs = {name: Func() for name in names}
 analyse(funcs, profile)
 dump(funcs)
 

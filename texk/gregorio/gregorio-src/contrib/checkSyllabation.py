@@ -32,6 +32,7 @@
 
 """
 
+
 import sys
 import re
 import argparse
@@ -39,9 +40,7 @@ import pyphen
 import os
 import glob
 
-DEFAULT_OUTFILE = False
-if os.name == 'nt':
-    DEFAULT_OUTFILE = 'check-syllabation.log'
+DEFAULT_OUTFILE = 'check-syllabation.log' if os.name == 'nt' else False
 
 def get_parser():
     "Return command line parser"
@@ -107,7 +106,7 @@ def get_file_list(path):
         files = sorted(files)
         return files
     else:
-        print('Error! Cannot find '+path, file=sys.stderr)
+        print(f'Error! Cannot find {path}', file=sys.stderr)
         sys.exit(1)
 
 def check_file(filepath, hyphenator, outfd, report_no_error=False):
@@ -116,13 +115,13 @@ def check_file(filepath, hyphenator, outfd, report_no_error=False):
         words_list = get_words_list(inputf.read())
     errors = checkwords(words_list, hyphenator)
     nb_errors = len(errors)
-    if nb_errors > 0 or report_no_error :
-        outfd.write('analyzing '+filepath+':\n')
+    if nb_errors > 0 or report_no_error:
+        outfd.write(f'analyzing {filepath}' + ':\n')
         if nb_errors == 0:
             outfd.write('  no error!\n')
         else:
             for t in errors:
-                outfd.write('  '+t[0]+' should be '+t[1]+'\n')
+                outfd.write(f'  {t[0]} should be {t[1]}' + '\n')
         outfd.write('\n')
     return nb_errors
 
@@ -138,11 +137,11 @@ def main():
     if args.outfile != False:
         outfd = open(args.outfile, 'w', encoding='utf8')
     file_list = get_file_list(args.path)
-    nb_errors = 0
-    for f in file_list:
-        nb_errors += check_file(f, hyphenator, outfd, args.verbose)
+    nb_errors = sum(
+        check_file(f, hyphenator, outfd, args.verbose) for f in file_list
+    )
     if len(file_list) > 1 and nb_errors > 0:
-        outfd.write('Total errors: '+str(nb_errors)+'\n')
+        outfd.write(f'Total errors: {str(nb_errors)}' + '\n')
     elif nb_errors == 0 and not args.verbose:
         outfd.write('No error!\n')
     if outfd is not sys.stdout:

@@ -51,14 +51,10 @@ class CppToMarkdown:
         return text
     def functionname(self, text):
         check1 = re.compile(r"^[^()=]*(\b\w+)\s*[(=]")
-        found = check1.match(text)
-        if found:
-            return found.group(1)
+        if found := check1.match(text):
+            return found[1]
         check2 = re.compile(r"^[^()=]*(\b\w+)\s*$")
-        found = check2.match(text)
-        if found:
-            return found.group(1)
-        return ""
+        return found[1] if (found := check2.match(text)) else ""
     def run(self, filename):
         filetext = open(filename).read()
         for line in self.process(filetext, filename):
@@ -89,17 +85,17 @@ class CppToMarkdown:
                     print token, text.replace("\n", "\n  ")
     def isexported_function(self):
         function = self.function_text.strip().replace("\n"," ")
-        logg.debug("@ --------------------------------------") 
+        logg.debug("@ --------------------------------------")
         logg.debug("@ ALLDEFINITIONS %s", self.alldefinitions)
         if function.startswith("static ") and self.alldefinitions < 3:
             logg.debug("@ ONLY INTERNAL %s", function)
             return False
         if not self.comment_text:
-            if not self.alldefinitions:
+            if self.alldefinitions:
+                logg.warn("@ NO COMMENT ON %s", function)
+            else:
                 logg.info("@ NO COMMENT ON %s", function)
                 return False
-            else:
-                logg.warn("@ NO COMMENT ON %s", function)
         text = self.comment_text
         if text.startswith("/**"): return True
         if text.startswith("/*!"): return True
@@ -128,17 +124,15 @@ class CppToMarkdown:
                 if not self.filecomment_done:
                     self.filecomment_done = "done"
                     self.filecomment_text = text
-                    # wait until we know it is not a function documentation
-                    self.comment_text = text
-                else:
-                    self.comment_text = text
+                # wait until we know it is not a function documentation
+                self.comment_text = text
             elif token == Token.Comment.Preproc and "include" in text:
                 if not self.fileinclude_done:
                     self.fileinclude_done = "no"
                     self.fileinclude_text += text
                     self.comment_text = ""
             elif token == Token.Comment.Preproc and self.fileinclude_done == "no":
-                if not "\n" in self.fileinclude_text:
+                if "\n" not in self.fileinclude_text:
                     self.fileinclude_text += text
                 self.comment_text = ""
             elif token == Token.Comment.Preproc:
@@ -166,11 +160,8 @@ class CppToMarkdown:
                 self.nesting -= 1
                 self.comment_text = ""
                 self.function_text = ""
-            else:
-                if not self.nesting:
-                    self.function_text += text
-                else:
-                    pass # yield "|",text
+            elif not self.nesting:
+                self.function_text += text
                 
 
 if __name__ == "__main__":

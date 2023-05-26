@@ -65,49 +65,46 @@ class EnhancedLatexFormatter(LatexFormatter):
         if self.mathescape or self.texcomments or self.escapeinside:
             outfile.write(u',codes={\\catcode`\\$=3\\catcode`\\^=7\\catcode`\\_=8}')
         if self.verboptions:
-            outfile.write(u',' + self.verboptions)
+            outfile.write(f',{self.verboptions}')
         outfile.write(u']\n')
 
         for ttype, value in tokensource:
-            if ttype in Token.Comment:
-                if self.texcomments:
+            if ttype in Token.Comment and self.texcomments:
                     # Try to guess comment starting lexeme and escape it ...
-                    start = value[0:1]
-                    for i in xrange(1, len(value)):
-                        if start[0] != value[i]:
-                            break
-                        start += value[i]
+                start = value[:1]
+                for i in xrange(1, len(value)):
+                    if start[0] != value[i]:
+                        break
+                    start += value[i]
 
-                    value = value[len(start):]
-                    start = escape_tex(start, self.commandprefix)
+                value = value[len(start):]
+                start = escape_tex(start, self.commandprefix)
 
-                    # ... but do not escape inside comment.
-                    value = start + value
-                elif self.mathescape:
-                    # Only escape parts not inside a math environment.
-                    parts = value.split('$')
-                    in_math = False
-                    for i, part in enumerate(parts):
-                        if not in_math:
-                            parts[i] = escape_tex(part, self.commandprefix)
-                        in_math = not in_math
-                    value = '$'.join(parts)
-                elif self.escapeinside:
-                    text = value
-                    value = ''
-                    while len(text) > 0:
-                        a,sep1,text = text.partition(self.left)
-                        if len(sep1) > 0:
-                            b,sep2,text = text.partition(self.right)
-                            if len(sep2) > 0:
-                                value += escape_tex(a, self.commandprefix) + b
-                            else:
-                                value += escape_tex(a + sep1 + b, self.commandprefix)
+                # ... but do not escape inside comment.
+                value = start + value
+            elif ttype in Token.Comment and self.mathescape:
+                # Only escape parts not inside a math environment.
+                parts = value.split('$')
+                in_math = False
+                for i, part in enumerate(parts):
+                    if not in_math:
+                        parts[i] = escape_tex(part, self.commandprefix)
+                    in_math = not in_math
+                value = '$'.join(parts)
+            elif ttype in Token.Comment and self.escapeinside:
+                text = value
+                value = ''
+                while len(text) > 0:
+                    a,sep1,text = text.partition(self.left)
+                    if len(sep1) > 0:
+                        b,sep2,text = text.partition(self.right)
+                        if len(sep2) > 0:
+                            value += escape_tex(a, self.commandprefix) + b
                         else:
-                            value = value + escape_tex(a, self.commandprefix)
-                else:
-                    value = escape_tex(value, self.commandprefix)
-            elif ttype not in Token.Escape:
+                            value += escape_tex(a + sep1 + b, self.commandprefix)
+                    else:
+                        value = value + escape_tex(a, self.commandprefix)
+            elif ttype in Token.Comment or ttype not in Token.Escape:
                 value = escape_tex(value, self.commandprefix)
             styles = []
             while ttype is not Token:
@@ -117,8 +114,7 @@ class EnhancedLatexFormatter(LatexFormatter):
                     # not in current style
                     styles.append(_get_ttype_name(ttype))
                 ttype = ttype.parent
-            styleval = '+'.join(reversed(styles))
-            if styleval:
+            if styleval := '+'.join(reversed(styles)):
                 spl = value.split('\n')
                 for line in spl[:-1]:
                     if line:
@@ -163,8 +159,7 @@ class LatexEmbeddedLexer(Lexer):
         for i, t, v in self.lang.get_tokens_unprocessed(text):
             if t in Token.Comment or t in Token.String:
                 if buf:
-                    for x in self.get_tokens_aux(idx, buf):
-                        yield x
+                    yield from self.get_tokens_aux(idx, buf)
                     buf = ''
                 yield i, t, v
             else:
@@ -172,8 +167,7 @@ class LatexEmbeddedLexer(Lexer):
                     idx = i
                 buf += v
         if buf:
-            for x in self.get_tokens_aux(idx, buf):
-                yield x
+            yield from self.get_tokens_aux(idx, buf)
 
     def get_tokens_aux(self, index, text):
         while text:
@@ -252,12 +246,10 @@ def pyg(outfile, n, opts, extra_opts, text, usedstyles, inline_delim = ''):
         _fmter.right = right
         lexer = LatexEmbeddedLexer(left, right, lexer)
 
-    gobble = abs(get_int_opt(opts, 'gobble', 0))
-    if gobble:
+    if gobble := abs(get_int_opt(opts, 'gobble', 0)):
         lexer.add_filter('gobble', n=gobble)
 
-    tabsize = abs(get_int_opt(opts, 'tabsize', 0))
-    if tabsize:
+    if tabsize := abs(get_int_opt(opts, 'tabsize', 0)):
         lexer.tabsize = tabsize
 
     encoding = opts['encoding']
@@ -303,13 +295,13 @@ def pyg(outfile, n, opts, extra_opts, text, usedstyles, inline_delim = ''):
 
     x = highlight(text, lexer, _fmter)
 
-    m = re.match(r'\\begin\{Verbatim}(.*)\n([\s\S]*?)\n\\end\{Verbatim}(\s*)\Z',
-                 x)
-    if m:
+    if m := re.match(
+        r'\\begin\{Verbatim}(.*)\n([\s\S]*?)\n\\end\{Verbatim}(\s*)\Z', x
+    ):
         linenos = get_bool_opt(opts, 'linenos', False)
         linenostart = abs(get_int_opt(opts, 'linenostart', 1))
         linenostep = abs(get_int_opt(opts, 'linenostep', 1))
-        lines0 = m.group(2).split('\n')
+        lines0 = m[2].split('\n')
         numbers = []
         lines = []
         counter = linenostart
@@ -387,11 +379,10 @@ def convert(code, outfile):
 
     while pos < len(code):
         if code[pos].isspace():
-            pos = pos + 1
+            pos += 1
             continue
 
-        m = _re_inline.match(code, pos)
-        if m:
+        if m := _re_inline.match(code, pos):
             pyg(outfile,
                 m.group(1),
                 parse_opts(opts.copy(), m.group(2)),
@@ -402,8 +393,7 @@ def convert(code, outfile):
             pos = m.end()
             continue
 
-        m = _re_display.match(code, pos)
-        if m:
+        if m := _re_display.match(code, pos):
             pyg(outfile,
                 m.group(1),
                 parse_opts(opts.copy(), m.group(2)),
@@ -413,8 +403,7 @@ def convert(code, outfile):
             pos = m.end()
             continue
 
-        m = _re_input.match(code, pos)
-        if m:
+        if m := _re_input.match(code, pos):
             try:
                 filecontents = open(m.group(3), 'rb').read()
             except Exception as err:
@@ -473,10 +462,7 @@ def main(args = sys.argv):
     except getopt.GetoptError as err:
         sys.stderr.write(usage)
         return 2
-    opts = {}
-    for opt, arg in popts:
-        opts[opt] = arg
-
+    opts = dict(popts)
     if not opts and not args:
         print(usage)
         return 0
@@ -486,9 +472,9 @@ def main(args = sys.argv):
         return 0
 
     if opts.pop('-V', None) is not None:
-        print('PygmenTeX version %s, (c) 2010 by José Romildo.' % __version__)
+        print(f'PygmenTeX version {__version__}, (c) 2010 by José Romildo.')
         return 0
- 
+
     if len(args) != 1:
         sys.stderr.write(usage)
         return 2
@@ -503,7 +489,7 @@ def main(args = sys.argv):
     outfn = opts.pop('-o', None)
     if not outfn:
         root, ext = splitext(infn)
-        outfn = root + '.pygmented'
+        outfn = f'{root}.pygmented'
     try:
         outfile = open(outfn, 'w')
     except Exception as err:

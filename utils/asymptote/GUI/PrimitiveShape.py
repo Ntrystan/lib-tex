@@ -14,9 +14,9 @@ class PrimitiveShape:
 
     @staticmethod
     def pos_to_tuple(pos):
-        if isinstance(pos, tuple) or isinstance(pos, np.ndarray):
+        if isinstance(pos, (tuple, np.ndarray)):
             return pos
-        elif isinstance(pos, Qc.QPoint) or isinstance(pos, Qc.QPointF):
+        elif isinstance(pos, (Qc.QPoint, Qc.QPointF)):
             return pos.x(), pos.y()
         else:
             raise TypeError("Position must be a valid type!")
@@ -44,10 +44,12 @@ class PrimitiveShape:
     def inscribedRegPolygon(cls, sides, position, radius, starting_rad, qpoly=False):
         pos_x, pos_y = PrimitiveShape.pos_to_tuple(position)
         lkList = ['--'] * sides
-        ptsList = []
-        for ang in np.linspace(starting_rad, starting_rad + math.tau, sides, endpoint=False):
-            ptsList.append((pos_x + radius * math.cos(ang), pos_y + radius * math.sin(ang)))
-
+        ptsList = [
+            (pos_x + radius * math.cos(ang), pos_y + radius * math.sin(ang))
+            for ang in np.linspace(
+                starting_rad, starting_rad + math.tau, sides, endpoint=False
+            )
+        ]
         if qpoly:
             ptsList.append((pos_x + radius * math.cos(starting_rad), pos_y + radius * math.sin(starting_rad)))
             qpoints = [Qc.QPointF(x, y) for (x, y) in ptsList]

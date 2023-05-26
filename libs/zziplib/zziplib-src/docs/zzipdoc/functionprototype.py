@@ -38,23 +38,15 @@ class FunctionPrototype:
             return True
         return False
     def _assert_parsed(self):
-        if self.name is None:
-            return self.parse()
-        return True
+        return self.parse() if self.name is None else True
     def get_prespec(self):
-        if not self._assert_parsed(): return None
-        return self.prespec
+        return None if not self._assert_parsed() else self.prespec
     def get_namespec(self):
-        if not self._assert_parsed(): return None
-        return self.namespec
+        return None if not self._assert_parsed() else self.namespec
     def get_callspec(self):
-        if not self._assert_parsed(): return None
-        return self.callspec
+        return None if not self._assert_parsed() else self.callspec
     def get_name(self):
-        if not self._assert_parsed(): return None
-        return self.name
+        return None if not self._assert_parsed() else self.name
     def xml_text(self):
         if not self.namespec: return self.namespec
-        return ("<fu:protospec><fu:prespec>"+self.prespec+"</fu:prespec>"+
-                "<fu:namespec>"+self.namespec+"</fu:namespec>"+
-                "<fu:callspec>"+self.callspec+"</fu:callspec></fu:protospec>")
+        return f"<fu:protospec><fu:prespec>{self.prespec}</fu:prespec><fu:namespec>{self.namespec}</fu:namespec><fu:callspec>{self.callspec}</fu:callspec></fu:protospec>"

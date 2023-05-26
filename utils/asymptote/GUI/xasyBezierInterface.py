@@ -180,10 +180,7 @@ class InteractiveBezierEditor(InplaceAddObj.InplaceObjProcess):
         if subindex == 0:
             return index
         else:
-            if self.asyPath.nodeSet[index + 1] == 'cycle':
-                return 0
-            else:
-                return index + 1
+            return 0 if self.asyPath.nodeSet[index + 1] == 'cycle' else index + 1
 
     def resetObj(self):
         self.asyPath.setInfo(self.asyPathBackup)
@@ -194,17 +191,17 @@ class InteractiveBezierEditor(InplaceAddObj.InplaceObjProcess):
         if self.inTransformMode:
             return
 
-        if self.prosectiveNodes and not self.inTransformMode:
+        if self.prosectiveNodes:
             self.currentSelMode = CurrentlySelctedType.node
             self.currentSelIndex = (self.prosectiveNodes[0], 0)
             self.inTransformMode = True
             self.parentNodeIndex = self.currentSelIndex[0]
-        elif self.prospectiveCtrlPts and not self.inTransformMode:
+        elif self.prospectiveCtrlPts:
             self.currentSelMode = CurrentlySelctedType.ctrlPoint
             self.currentSelIndex = self.prospectiveCtrlPts[0]
             self.inTransformMode = True
             self.parentNodeIndex = self.findLinkingNode(*self.currentSelIndex)
-        
+
         if self.inTransformMode:
             parentNode = self.asyPath.nodeSet[self.parentNodeIndex]
 
@@ -234,8 +231,6 @@ class InteractiveBezierEditor(InplaceAddObj.InplaceObjProcess):
         if self.currentSelMode is None and not self.inTransformMode:
             # in this case, search for prosective nodes. 
             prospectiveNodes = []
-            prospectiveCtrlpts = []
-
             for i in range(len(self.nodeSelRects)):
                 rect = self.nodeSelRects[i]
                 if rect is None:
@@ -246,6 +241,8 @@ class InteractiveBezierEditor(InplaceAddObj.InplaceObjProcess):
             self.prosectiveNodes = prospectiveNodes
 
             if not self.info['autoRecompute'] and self.curveMode:
+                prospectiveCtrlpts = []
+
                 for i in range(len(self.ctrlSelRects)):
                     recta, rectb = self.ctrlSelRects[i]
 
@@ -275,19 +272,18 @@ class InteractiveBezierEditor(InplaceAddObj.InplaceObjProcess):
                 if self.curveMode:
                     checkPre, checkPost = self.getPreAndPostCtrlPts(index)
 
-                    if 1 == 1: # TODO: Replace this with an option to also move control pts. 
-                        if checkPre is not None:
-                            self.asyPath.controlSet[index - 1][1] = xu.funcOnList(
-                                newNode, self.preCtrlOffset, lambda a, b: a + b
-                            )
-                        if checkPost is not None:
-                            self.asyPath.controlSet[index][0] = xu.funcOnList(
-                                newNode, self.postCtrlOffset, lambda a, b: a + b
-                            )
+                    if checkPre is not None:
+                        self.asyPath.controlSet[index - 1][1] = xu.funcOnList(
+                            newNode, self.preCtrlOffset, lambda a, b: a + b
+                        )
+                    if checkPost is not None:
+                        self.asyPath.controlSet[index][0] = xu.funcOnList(
+                            newNode, self.postCtrlOffset, lambda a, b: a + b
+                        )
 
                     if self.info['autoRecompute']:
                         self.quickRecalculateCtrls()
-                        
+
 
             elif self.currentSelMode == CurrentlySelctedType.ctrlPoint and self.curveMode:
                 self.asyPath.controlSet[index][subindex] = newNode
@@ -310,37 +306,55 @@ class InteractiveBezierEditor(InplaceAddObj.InplaceObjProcess):
                 if self.info['editBezierlockMode'] >= Web.LockMode.angleLock:
                     otherIndex = 1 - subindex       # 1 if 0, 0 otherwise. 
                     if otherIndex == 0:
-                        if index < (len(self.asyPath.controlSet) - 1) or isCycle:
+                        if index < (len(self.asyPath.controlSet) - 1):
                             newIndex = 0 if isCycle else index + 1
 
                             oldOtherCtrlPnt = xu.funcOnList(
                                 self.asyPath.controlSet[newIndex][0], parentNode, lambda a, b: a - b)
-                        
-                            if self.info['editBezierlockMode'] >= Web.LockMode.angleAndScaleLock:
-                                rawNorm = newNorm
-                            else:
-                                rawNorm = xu.twonorm(oldOtherCtrlPnt)
 
+                            rawNorm = (
+                                newNorm
+                                if self.info['editBezierlockMode']
+                                >= Web.LockMode.angleAndScaleLock
+                                else xu.twonorm(oldOtherCtrlPnt)
+                            )
                             newPnt = (rawNorm * math.cos(rawAngle + math.pi), 
                                 rawNorm * math.sin(rawAngle + math.pi))
-                                
+
                             self.asyPath.controlSet[newIndex][0] = xu.funcOnList(
                                 newPnt, parentNode, lambda a, b: a + b)
-                    else:
-                        if index > 0 or isCycle:
-                            newIndex = -1 if isCycle else index - 1
+                        elif isCycle:
+                            newIndex = 0 if isCycle else index + 1
+
                             oldOtherCtrlPnt = xu.funcOnList(
-                                self.asyPath.controlSet[newIndex][1], parentNode, lambda a, b: a - b)
+                                self.asyPath.controlSet[newIndex][0], parentNode, lambda a, b: a - b)
 
-                            if self.info['editBezierlockMode'] >= Web.LockMode.angleAndScaleLock:
-                                rawNorm = newNorm
-                            else:
-                                rawNorm = xu.twonorm(oldOtherCtrlPnt)
+                            rawNorm = (
+                                newNorm
+                                if self.info['editBezierlockMode']
+                                >= Web.LockMode.angleAndScaleLock
+                                else xu.twonorm(oldOtherCtrlPnt)
+                            )
+                            newPnt = (rawNorm * math.cos(rawAngle + math.pi), 
+                                rawNorm * math.sin(rawAngle + math.pi))
 
-                            newPnt = (rawNorm * math.cos(rawAngle + math.pi),
-                                      rawNorm * math.sin(rawAngle + math.pi))
-                            self.asyPath.controlSet[newIndex][1] = xu.funcOnList(
+                            self.asyPath.controlSet[newIndex][0] = xu.funcOnList(
                                 newPnt, parentNode, lambda a, b: a + b)
+                    elif index > 0 or isCycle:
+                        newIndex = -1 if isCycle else index - 1
+                        oldOtherCtrlPnt = xu.funcOnList(
+                            self.asyPath.controlSet[newIndex][1], parentNode, lambda a, b: a - b)
+
+                        rawNorm = (
+                            newNorm
+                            if self.info['editBezierlockMode']
+                            >= Web.LockMode.angleAndScaleLock
+                            else xu.twonorm(oldOtherCtrlPnt)
+                        )
+                        newPnt = (rawNorm * math.cos(rawAngle + math.pi),
+                                  rawNorm * math.sin(rawAngle + math.pi))
+                        self.asyPath.controlSet[newIndex][1] = xu.funcOnList(
+                            newPnt, parentNode, lambda a, b: a + b)
         
     def recalculateCtrls(self):
         self.quickRecalculateCtrls()

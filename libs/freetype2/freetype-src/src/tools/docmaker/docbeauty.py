@@ -16,25 +16,25 @@ import sys, os, string, getopt
 content_processor = ContentProcessor()
 
 
-def  beautify_block( block ):
-    if block.content:
-        content_processor.reset()
+def beautify_block( block ):
+    if not block.content:
+        return
+    content_processor.reset()
 
-        markups = content_processor.process_content( block.content )
-        text    = []
-        first   = 1
+    markups = content_processor.process_content( block.content )
+    text    = []
+    first   = 1
 
-        for markup in markups:
-            text.extend( markup.beautify( first ) )
-            first = 0
+    for markup in markups:
+        text.extend( markup.beautify( first ) )
+        first = 0
 
-        # now beautify the documentation "borders" themselves
-        lines = [" /*************************************************************************"]
-        for l in text:
-            lines.append( "  *" + l )
-        lines.append( "  */" )
+    # now beautify the documentation "borders" themselves
+    lines = [" /*************************************************************************"]
+    lines.extend(f"  *{l}" for l in text)
+    lines.append( "  */" )
 
-        block.lines = lines
+    block.lines = lines
 
 
 def  usage():
@@ -47,7 +47,7 @@ def  usage():
     print( "  --backup : same as -b" )
 
 
-def  main( argv ):
+def main( argv ):
     """main program loop"""
 
     global output_dir
@@ -88,16 +88,15 @@ def  main( argv ):
         for block in source_processor.blocks:
             beautify_block( block )
 
-        new_name = filename + ".new"
+        new_name = f"{filename}.new"
         ok       = None
 
         try:
-            file = open( new_name, "wt" )
-            for block in source_processor.blocks:
-                for line in block.lines:
-                    file.write( line )
-                    file.write( "\n" )
-            file.close()
+            with open( new_name, "wt" ) as file:
+                for block in source_processor.blocks:
+                    for line in block.lines:
+                        file.write( line )
+                        file.write( "\n" )
         except:
             ok = 0
 

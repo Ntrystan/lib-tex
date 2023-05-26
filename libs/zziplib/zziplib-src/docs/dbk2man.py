@@ -74,7 +74,7 @@ def refentryinfo2(refentry, title):
                 if title:
                     header += [ title ]
     if header:
-        text = '.TH ' + " ".join([ '"%s"' % esc(part) for part in header])
+        text = '.TH ' + " ".join([f'"{esc(part)}"' for part in header])
         return text + "\n"
     logg.warning("no <refmeta> found")
     return ""
@@ -99,7 +99,7 @@ def refentrytitle2(refentry, title = ""):
         text = '.SH "NAME"' + "\n"
         text += "" + esc(", ".join(refentries))
         text += " " + esc("-")
-        text += " " + esc(refpurpose)
+        text += f" {esc(refpurpose)}"
         return text + "\n"
     logg.warning("no <refentrytitle> found")
     return ""
@@ -117,7 +117,7 @@ def refsynopsisdiv2(refentry, title = ""):
             if found is not None: funcsynopsisinfo = found.text
             if funcsynopsisinfo:
                 for info in funcsynopsisinfo.split("\n"):
-                    text += '.B "%s"' % esc(info)
+                    text += f'.B "{esc(info)}"'
                     text += "\n"
                 text += ".sp" + "\n"
             else:
@@ -128,20 +128,11 @@ def refsynopsisdiv2(refentry, title = ""):
                 item = ET.tostring(funcprototype)
                 item = item.replace("<funcprototype>","")
                 item = item.replace("</funcprototype>","")
-                if False:
-                    item = item.replace("\n", " ")
-                    item = item.replace("<funcdef>","")
-                    item = item.replace("</funcdef>","")
-                    item = item.replace("<paramdef>",'<def>')
-                    item = item.replace("</paramdef>",'<def>')
-                    items = item.split("<def>")
-                    text += '.BI %s' % " ".join(['"%s"' % part for part in items if part])
-                else:
-                    item = item.replace("<funcdef>","")
-                    item = re.sub(r"([_\w]+)</funcdef>", lambda x: "\\fI%s\\fR" % x.group(1), item)
-                    item = item.replace("<paramdef>",'')
-                    item = item.replace("</paramdef>",'')
-                    text += item 
+                item = item.replace("<funcdef>","")
+                item = re.sub(r"([_\w]+)</funcdef>", lambda x: "\\fI%s\\fR" % x.group(1), item)
+                item = item.replace("<paramdef>",'')
+                item = item.replace("</paramdef>",'')
+                text += item
                 text += "\n"
                 funcs += 1
             if not funcs:
@@ -158,8 +149,8 @@ def refsections2(refentry, title = ""):
     for refsect in refentry.findall("refsect1"):
         head = refsect.find("title")
         if head is not None:
-           text += '.SH "%s"' % (esc(head.text.upper()))
-           text += "\n"
+            text += f'.SH "{esc(head.text.upper())}"'
+            text += "\n"
         for para in list(refsect):
             if para.tag == 'title':
                 continue
@@ -227,17 +218,16 @@ def refentry2man(refentry, subdirectory = ".", title = ""):
         if not refentrytitle:
             refentrytitle = refname.text
         manpage = refname.text
-        filename = "%s/man%s/%s.%s" % (subdirectory, manvolnum, manpage, manvolnum)
+        filename = f"{subdirectory}/man{manvolnum}/{manpage}.{manvolnum}"
         if manpage != refentrytitle:
             manpagetext = ".so %s.%s\n" % (refentrytitle, manvolnum)
-            writefile(filename, manpagetext)
         else:
             manpagetext = text
-            writefile(filename, manpagetext)
             written += 1
+        writefile(filename, manpagetext)
     if not written:
         manpage = refentrytitle
-        filename = "%s/man%s/%s.%s" % (subdirectory, manvolnum, manpage, manvolnum)
+        filename = f"{subdirectory}/man{manvolnum}/{manpage}.{manvolnum}"
         writefile(filename, manpagetext)
 
 def writefile(filename, manpagetext):
