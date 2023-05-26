@@ -486,10 +486,6 @@ class MainWindow1(Qw.QMainWindow):
         if self.terminalPythonMode:
             exec(self.ui.txtTerminalPrompt.text())
             self.fileChanged = True
-        else:
-            pass
-            # TODO: How to handle this case?
-            # Like AutoCAD? 
         self.ui.txtTerminalPrompt.clear()
 
     def btnFillOnClick(self, checked): 
@@ -505,7 +501,6 @@ class MainWindow1(Qw.QMainWindow):
     @property
     def currentPen(self):
         return x2a.asyPen.fromAsyPen(self._currentPen)
-        pass
     def debug(self):
         print('Put a breakpoint here.')
 
@@ -569,9 +564,9 @@ class MainWindow1(Qw.QMainWindow):
 
     def drawHint(self):
         if self.settings['useLegacyDrawMode']:
-            self.ui.statusbar.showMessage(self.LegacyHint+'.')
+            self.ui.statusbar.showMessage(f'{self.LegacyHint}.')
         else:
-            self.ui.statusbar.showMessage(self.Hint+'.')
+            self.ui.statusbar.showMessage(f'{self.Hint}.')
 
     def drawHintOpen(self):
         if self.settings['useLegacyDrawMode']:

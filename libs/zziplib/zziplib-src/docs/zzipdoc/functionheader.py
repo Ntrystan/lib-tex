@@ -62,8 +62,7 @@ class FunctionHeader:
         """ gets titleline unless that is a redirect """
         titleline = self.get_titleline()
         if titleline & Match(r"^\s*=>"): return ""
-        if titleline & Match(r"^\s*<link>"): return ""
-        return titleline
+        return "" if titleline & Match(r"^\s*<link>") else titleline
     def get_prototype(self):
         return self.prototype
     

@@ -71,8 +71,8 @@ def _RemoveComment(line):
 
 def _ReadLine(f):
   while True:
-    line = _RemoveComment(f.next())
-    if line: return line
+    if line := _RemoveComment(f.next()):
+      return line
 
 def _ReadFiles(deps_file, item, library_name):
   global files
@@ -81,10 +81,10 @@ def _ReadFiles(deps_file, item, library_name):
     line = _ReadLine(deps_file)
     if not line: continue
     if not line.startswith("    "): return line
-    if item_files == None: item_files = item["files"] = set()
+    if item_files is None: item_files = item["files"] = set()
     for file_name in line.split():
       _CheckFileName(file_name)
-      file_name = library_name + "/" + file_name
+      file_name = f"{library_name}/{file_name}"
       if file_name in files:
         sys.exit("Error:%d: file %s listed in multiple groups" % (_line_number, file_name))
       files.add(file_name)
@@ -102,14 +102,14 @@ def _ReadDeps(deps_file, item, library_name):
     line = _ReadLine(deps_file)
     if not line: continue
     if not line.startswith("    "): return line
-    if item_deps == None: item_deps = item["deps"] = set()
+    if item_deps is None: item_deps = item["deps"] = set()
     for dep in line.split():
       _CheckGroupName(dep)
       dep_item = items.get(dep)
       if item["type"] == "system_symbols" and (_IsLibraryGroup(dep_item) or _IsLibrary(dep_item)):
         sys.exit(("Error:%d: system_symbols depend on previously defined " +
                   "library or library group %s") % (_line_number, dep))
-      if dep_item == None:
+      if dep_item is None:
         # Add this dependency as a new group.
         items[dep] = {"type": "group"}
         if library_name: items[dep]["library"] = library_name
@@ -118,7 +118,7 @@ def _ReadDeps(deps_file, item, library_name):
 
 def _AddSystemSymbol(item, symbol):
   exports = item.get("system_symbols")
-  if exports == None: exports = item["system_symbols"] = set()
+  if exports is None: exports = item["system_symbols"] = set()
   exports.add(symbol)
 
 def _ReadSystemSymbols(deps_file, item):
@@ -170,8 +170,7 @@ def Load():
         _groups_to_be_defined.remove(name)
         item = items[name]
         item["name"] = name
-        library_name = item.get("library")
-        if library_name:
+        if library_name := item.get("library"):
           line = _ReadFiles(deps_file, item, library_name)
         else:
           line = _ReadSystemSymbols(deps_file, item)
@@ -197,4 +196,6 @@ def Load():
   except StopIteration:
     pass
   if _groups_to_be_defined:
-    sys.exit("Error: some groups mentioned in dependencies are undefined: %s" % _groups_to_be_defined)
+    sys.exit(
+        f"Error: some groups mentioned in dependencies are undefined: {_groups_to_be_defined}"
+    )

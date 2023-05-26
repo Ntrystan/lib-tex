@@ -45,65 +45,60 @@ class actionStack:
         self.redoStack = []
 
     def undo(self):
-        if len(self.undoStack) > 0:
-            op = self.undoStack.pop()
-            if op is beginActionGroup:
-                level = 1
-                self.redoStack.append(endActionGroup)
-                while level > 0:
-                    op = self.undoStack.pop()
-                    if op is endActionGroup:
-                        level -= 1
-                        self.redoStack.append(beginActionGroup)
-                    elif op is beginActionGroup:
-                        level += 1
-                        self.redoStack.append(endActionGroup)
-                    else:
-                        op.undo()
-                        self.redoStack.append(op)
-            elif op is endActionGroup:
-                raise Exception("endActionGroup without previous beginActionGroup")
-            else:
-                self.redoStack.append(op)
-                op.undo()
-                # print ("undid",op)
+        if len(self.undoStack) <= 0:
+            return
+        op = self.undoStack.pop()
+        if op is beginActionGroup:
+            level = 1
+            self.redoStack.append(endActionGroup)
+            while level > 0:
+                op = self.undoStack.pop()
+                if op is endActionGroup:
+                    level -= 1
+                    self.redoStack.append(beginActionGroup)
+                elif op is beginActionGroup:
+                    level += 1
+                    self.redoStack.append(endActionGroup)
+                else:
+                    op.undo()
+                    self.redoStack.append(op)
+        elif op is endActionGroup:
+            raise Exception("endActionGroup without previous beginActionGroup")
         else:
-            pass  # print ("nothing to undo")
+            self.redoStack.append(op)
+            op.undo()
+            # print ("undid",op)
 
     def redo(self):
-        if len(self.redoStack) > 0:
-            op = self.redoStack.pop()
-            if op is beginActionGroup:
-                level = 1
-                self.undoStack.append(endActionGroup)
-                while level > 0:
-                    op = self.redoStack.pop()
-                    if op is endActionGroup:
-                        level -= 1
-                        self.undoStack.append(beginActionGroup)
-                    elif op is beginActionGroup:
-                        level += 1
-                        self.undoStack.append(endActionGroup)
-                    else:
-                        op.redo()
-                        self.undoStack.append(op)
-            elif op is endActionGroup:
-                raise Exception("endActionGroup without previous beginActionGroup")
-            else:
-                self.undoStack.append(op)
-                op.redo()
-                # print ("redid",op)
+        if len(self.redoStack) <= 0:
+            return
+        op = self.redoStack.pop()
+        if op is beginActionGroup:
+            level = 1
+            self.undoStack.append(endActionGroup)
+            while level > 0:
+                op = self.redoStack.pop()
+                if op is endActionGroup:
+                    level -= 1
+                    self.undoStack.append(beginActionGroup)
+                elif op is beginActionGroup:
+                    level += 1
+                    self.undoStack.append(endActionGroup)
+                else:
+                    op.redo()
+                    self.undoStack.append(op)
+        elif op is endActionGroup:
+            raise Exception("endActionGroup without previous beginActionGroup")
         else:
-            pass  # print ("nothing to redo")
+            self.undoStack.append(op)
+            op.redo()
+            # print ("redid",op)
 
     def setCommitLevel(self):
         self.commitLevel = len(self.undoStack)
 
     def changesMade(self):
-        if len(self.undoStack) != self.commitLevel:
-            return True
-        else:
-            return False
+        return len(self.undoStack) != self.commitLevel
 
     def clear(self):
         self.redoStack = []

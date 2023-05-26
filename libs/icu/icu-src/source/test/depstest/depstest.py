@@ -153,8 +153,7 @@ def Process(root_path):
   for name_and_item in dependencies.items.iteritems():
     name = name_and_item[0]
     item = name_and_item[1]
-    system_symbols = item.get("system_symbols")
-    if system_symbols:
+    if system_symbols := item.get("system_symbols"):
       for symbol in system_symbols:
         _symbols_to_files[symbol] = name
   for library_name in dependencies.libraries:
@@ -174,8 +173,8 @@ def Process(root_path):
     for library_name in dependencies.libraries:
       _Resolve(library_name, [])
   if not _return_value:
-    virtual_classes_with_weak_destructors = _virtual_classes & _weak_destructors
-    if virtual_classes_with_weak_destructors:
+    if (virtual_classes_with_weak_destructors := _virtual_classes
+        & _weak_destructors):
       sys.stderr.write("Error: Some classes have virtual methods, and "
                        "an implicit or inline destructor "
                        "(see ICU ticket #8454 for details):\n%s\n" %

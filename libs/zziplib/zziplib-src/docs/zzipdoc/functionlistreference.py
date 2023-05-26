@@ -35,9 +35,9 @@ class FunctionListReference:
                 if item not in self.entry.seealso_list:
                     self.entry.seealso_list += [ item ]
     def get_title(self):
-        return self.o.package+" Function List"
+        return f"{self.o.package} Function List"
     def xml_text(self):
-        T = "<reference><title>"+self.get_title()+"</title>\n"
+        T = f"<reference><title>{self.get_title()}" + "</title>\n"
         for item in self.pages:
             text = item.refentry_text()
             if not text: "OOPS, no text for", item.name ; continue
@@ -126,14 +126,15 @@ class FunctionListRefEntry:
             be made up and these parts are set in <refmeta> actually """
         if self.refmeta:
             return self.refmeta
-        if self.manvolnum and self.refentrytitle:
-            return (
-                "\n <refentrytitle>"+self.refentrytitle+"</refentrytitle>"+
-                "\n <manvolnum>"+self.manvolnum+"</manvolnum>")
-        if self.manvolnum and self.name:
-            return (
-                "\n <refentrytitle>"+self.name+"</refentrytitle>"+
-                "\n <manvolnum>"+self.manvolnum+"</manvolnum>")
+        if self.manvolnum:
+            if self.refentrytitle:
+                return (
+                    "\n <refentrytitle>"+self.refentrytitle+"</refentrytitle>"+
+                    "\n <manvolnum>"+self.manvolnum+"</manvolnum>")
+            if self.name:
+                return (
+                    "\n <refentrytitle>"+self.name+"</refentrytitle>"+
+                    "\n <manvolnum>"+self.manvolnum+"</manvolnum>")
         return ""
     def refnamediv_text(self):
         """ the manvol formatter prints a header line with a <refpurpose> line
@@ -142,15 +143,17 @@ class FunctionListRefEntry:
             of the <refname>!=<refentrytitle> then a symlink is created """
         if self.refnamediv:
             return self.refnamediv
-        if self.refpurpose and self.refname:
-            return ("\n <refname>"+self.refname+'</refname>'+
-                    "\n <refpurpose>"+self.refpurpose+" </refpurpose>")
-        if self.refpurpose and self.refname_list:
-            T = ""
-            for refname in self.refname_list:
-                T += "\n <refname>"+refname+'</refname>'
-            T += "\n <refpurpose>"+self.refpurpose+" </refpurpose>"
-            return T
+        if self.refpurpose:
+            if self.refname:
+                return ("\n <refname>"+self.refname+'</refname>'+
+                        "\n <refpurpose>"+self.refpurpose+" </refpurpose>")
+            if self.refname_list:
+                T = "".join(
+                    "\n <refname>" + refname + '</refname>'
+                    for refname in self.refname_list
+                )
+                T += "\n <refpurpose>"+self.refpurpose+" </refpurpose>"
+                return T
         return ""
     def funcsynopsisdiv_text(self):
         """ refsynopsisdiv shall be between the manvol mangemaent information
@@ -179,10 +182,9 @@ class FunctionListRefEntry:
         if self.description:
             return self.description
         if self.description_list:
-            T = ""
-            for description in self.description_list:
-                if not description: continue
-                T += description
+            T = "".join(
+                description for description in self.description_list if description
+            )
             if T.strip() != "": return T
         return "<para>(missing description)</para>"
     def authors_text(self):
@@ -201,9 +203,7 @@ class FunctionListRefEntry:
                 previous = authors
             T += "</itemizedlist>"
             return T
-        if self.authors:
-            return self.authors
-        return ""
+        return self.authors if self.authors else ""
     def copyright_text(self):
         """ the copyright section is almost last on a manpage and purely
             optional. We list the part of the per-file copyright info """
@@ -234,35 +234,31 @@ class FunctionListRefEntry:
         """ combine fields into a proper docbook refentry """
         if id is None:
             id = self.refentry
-        if id:
-            T = '<refentry id="'+id+'">'
-        else:
-            T = '<refentry>' # this is an error
-           
+        T = f'<refentry id="{id}">' if id else '<refentry>'
         if self.refentryinfo_text():
             T += "\n<refentryinfo>"+       self.refentryinfo_text()+ \
-                 "\n</refentryinfo>\n"
+                     "\n</refentryinfo>\n"
         if self.refmeta_text():
             T += "\n<refmeta>"+            self.refmeta_text() + \
-                 "\n</refmeta>\n" 
+                     "\n</refmeta>\n"
         if self.refnamediv_text():
             T += "\n<refnamediv>"+         self.refnamediv_text() + \
-                 "\n</refnamediv>\n"
+                     "\n</refnamediv>\n"
         if self.funcsynopsisdiv_text():     
             T += "\n<refsynopsisdiv>\n"+   self.funcsynopsisdiv_text()+ \
-                 "\n</refsynopsisdiv>\n"
+                     "\n</refsynopsisdiv>\n"
         if self.description_text():
             T += "\n<refsect1><title>Description</title> " + \
-                 self.description_text() + "\n</refsect1>"
+                     self.description_text() + "\n</refsect1>"
         if self.authors_text():
             T += "\n<refsect1><title>Author</title> " + \
-                 self.authors_text() + "\n</refsect1>"
+                     self.authors_text() + "\n</refsect1>"
         if self.copyright_text():
             T += "\n<refsect1><title>Copyright</title> " + \
-                 self.copyright_text() + "\n</refsect1>\n"
+                     self.copyright_text() + "\n</refsect1>\n"
         if self.seealso_text():
             T += "\n<refsect1><title>See Also</title><para> " + \
-                 self.seealso_text() + "\n</para></refsect1>\n"
+                     self.seealso_text() + "\n</para></refsect1>\n"
 
         T +=  "\n</refentry>\n"
         return T

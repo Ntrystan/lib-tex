@@ -133,7 +133,7 @@ class GTKDoc(object):
             self.library_path = os.path.abspath(self.library_path)
 
         if not self.main_sgml_file:
-            self.main_sgml_file = self.module_name + "-docs.sgml"
+            self.main_sgml_file = f"{self.module_name}-docs.sgml"
 
     def generate(self, html=True):
         self.saw_warnings = False
@@ -165,13 +165,10 @@ class GTKDoc(object):
 
     def _raise_exception_if_file_inaccessible(self, path):
         if not os.path.exists(path) or not os.access(path, os.R_OK):
-            raise Exception("Could not access file at: %s" % path)
+            raise Exception(f"Could not access file at: {path}")
 
     def _output_has_warnings(self, outputs):
-        for output in outputs:
-            if output and output.find('warning'):
-                return True
-        return False
+        return any(output and output.find('warning') for output in outputs)
 
     def _ask_yes_or_no_question(self, question):
         if not self.interactive:
@@ -179,7 +176,7 @@ class GTKDoc(object):
 
         question += ' [y/N] '
         answer = None
-        while answer != 'y' and answer != 'n' and answer != '':
+        while answer not in ['y', 'n', '']:
             answer = raw_input(question).lower()
         return answer == 'y'
 
@@ -219,7 +216,7 @@ class GTKDoc(object):
             self.saw_warnings = True
             if not self._ask_yes_or_no_question('%s produced warnings, '
                                                 'try to continue?' % args[0]):
-                raise Exception('%s step failed' % args[0])
+                raise Exception(f'{args[0]} step failed')
 
         return stdout.strip()
 
@@ -275,40 +272,33 @@ class GTKDoc(object):
 
         # Don't overwrite version.xml if it was in the doc directory.
         if os.path.exists(version_xml_path) and \
-           os.path.exists(src_version_xml_path):
+               os.path.exists(src_version_xml_path):
             return
 
-        output_file = open(version_xml_path, 'w')
-        output_file.write(self.version)
-        output_file.close()
+        with open(version_xml_path, 'w') as output_file:
+            output_file.write(self.version)
 
     def _ignored_files_basenames(self):
         return ' '.join([os.path.basename(x) for x in self.ignored_files])
 
     def _run_gtkdoc_scan(self):
-        args = ['gtkdoc-scan',
-                '--module=%s' % self.module_name,
-                '--rebuild-types']
+        args = ['gtkdoc-scan', f'--module={self.module_name}', '--rebuild-types']
 
         if not self.headers:
             # Each source directory should be have its own "--source-dir=" prefix.
-            args.extend(['--source-dir=%s' % path for path in self.source_dirs])
+            args.extend([f'--source-dir={path}' for path in self.source_dirs])
 
         if self.decorator:
-            args.append('--ignore-decorators=%s' % self.decorator)
+            args.append(f'--ignore-decorators={self.decorator}')
         if self.deprecation_guard:
-            args.append('--deprecated-guards=%s' % self.deprecation_guard)
+            args.append(f'--deprecated-guards={self.deprecation_guard}')
         if self.output_dir:
-            args.append('--output-dir=%s' % self.output_dir)
+            args.append(f'--output-dir={self.output_dir}')
 
         # We only need to pass the list of ignored files if the we are not using an explicit list of headers.
         if not self.headers:
-            # gtkdoc-scan wants the basenames of ignored headers, so strip the
-            # dirname. Different from "--source-dir", the headers should be
-            # specified as one long string.
-            ignored_files_basenames = self._ignored_files_basenames()
-            if ignored_files_basenames:
-                args.append('--ignore-headers=%s' % ignored_files_basenames)
+            if ignored_files_basenames := self._ignored_files_basenames():
+                args.append(f'--ignore-headers={ignored_files_basenames}')
 
         if self.headers:
             args.extend(self.headers)
@@ -322,18 +312,17 @@ class GTKDoc(object):
             additional_ldflags = ''
             for arg in env.get('LDFLAGS', '').split(' '):
                 if arg.startswith('-L'):
-                    additional_ldflags = '%s %s' % (additional_ldflags, arg)
-            ldflags = ' "-L%s" %s ' % (self.library_path, additional_ldflags) + ldflags
-            current_ld_library_path = env.get('LD_LIBRARY_PATH')
-            if current_ld_library_path:
-                env['LD_LIBRARY_PATH'] = '%s:%s' % (self.library_path, current_ld_library_path)
+                    additional_ldflags = f'{additional_ldflags} {arg}'
+            ldflags = f' "-L{self.library_path}" {additional_ldflags} {ldflags}'
+            if current_ld_library_path := env.get('LD_LIBRARY_PATH'):
+                env['LD_LIBRARY_PATH'] = f'{self.library_path}:{current_ld_library_path}'
             else:
                 env['LD_LIBRARY_PATH'] = self.library_path
 
         if ldflags:
-            env['LDFLAGS'] = '%s %s' % (ldflags, env.get('LDFLAGS', ''))
+            env['LDFLAGS'] = f"{ldflags} {env.get('LDFLAGS', '')}"
         if self.cflags:
-            env['CFLAGS'] = '%s %s' % (self.cflags, env.get('CFLAGS', ''))
+            env['CFLAGS'] = f"{self.cflags} {env.get('CFLAGS', '')}"
 
         if 'CFLAGS' in env:
             self.logger.debug('CFLAGS=%s', env['CFLAGS'])
@@ -341,39 +330,41 @@ class GTKDoc(object):
             self.logger.debug('LDFLAGS %s', env['LDFLAGS'])
         if 'RUN' in env:
             self.logger.debug('RUN=%s', env['RUN'])
-        self._run_command(['gtkdoc-scangobj', '--module=%s' % self.module_name],
-                          env=env, cwd=self.output_dir)
+        self._run_command(
+            ['gtkdoc-scangobj', f'--module={self.module_name}'],
+            env=env,
+            cwd=self.output_dir,
+        )
 
     def _run_gtkdoc_mkdb(self):
         sgml_file = os.path.join(self.output_dir, self.main_sgml_file)
         self._raise_exception_if_file_inaccessible(sgml_file)
 
-        args = ['gtkdoc-mkdb',
-                '--module=%s' % self.module_name,
-                '--main-sgml-file=%s' % sgml_file,
-                '--source-suffixes=h,c,cpp,cc',
-                '--output-format=xml',
-                '--sgml-mode']
+        args = [
+            'gtkdoc-mkdb',
+            f'--module={self.module_name}',
+            f'--main-sgml-file={sgml_file}',
+            '--source-suffixes=h,c,cpp,cc',
+            '--output-format=xml',
+            '--sgml-mode',
+        ]
 
         if self.namespace:
-            args.append('--name-space=%s' % self.namespace)
+            args.append(f'--name-space={self.namespace}')
 
-        ignored_files_basenames = self._ignored_files_basenames()
-        if ignored_files_basenames:
-            args.append('--ignore-files=%s' % ignored_files_basenames)
+        if ignored_files_basenames := self._ignored_files_basenames():
+            args.append(f'--ignore-files={ignored_files_basenames}')
 
         # Each directory should be have its own "--source-dir=" prefix.
-        args.extend(['--source-dir=%s' % path for path in self.source_dirs])
+        args.extend([f'--source-dir={path}' for path in self.source_dirs])
         self._run_command(args, cwd=self.output_dir)
 
     def _run_gtkdoc_mkhtml(self):
         html_dest_dir = os.path.join(self.output_dir, 'html')
         if not os.path.isdir(html_dest_dir):
-            raise Exception("%s is not a directory, could not generate HTML"
-                            % html_dest_dir)
+            raise Exception(f"{html_dest_dir} is not a directory, could not generate HTML")
         elif not os.access(html_dest_dir, os.X_OK | os.R_OK | os.W_OK):
-            raise Exception("Could not access %s to generate HTML"
-                            % html_dest_dir)
+            raise Exception(f"Could not access {html_dest_dir} to generate HTML")
 
         # gtkdoc-mkhtml expects the SGML path to be absolute.
         sgml_file = os.path.join(os.path.abspath(self.output_dir),
@@ -384,11 +375,16 @@ class GTKDoc(object):
                           cwd=html_dest_dir)
 
     def _run_gtkdoc_fixxref(self):
-        args = ['gtkdoc-fixxref',
-                '--module=%s' % self.module_name,
-                '--module-dir=html',
-                '--html-dir=html']
-        args.extend(['--extra-dir=%s' % extra_dir for extra_dir in self.cross_reference_deps])
+        args = [
+            'gtkdoc-fixxref',
+            f'--module={self.module_name}',
+            '--module-dir=html',
+            '--html-dir=html',
+            *[
+                f'--extra-dir={extra_dir}'
+                for extra_dir in self.cross_reference_deps
+            ],
+        ]
         self._run_command(args, cwd=self.output_dir, ignore_warnings=True)
 
     def rebase_installed_docs(self):
@@ -397,16 +393,23 @@ class GTKDoc(object):
         html_dir = os.path.join(self.virtual_root + self.prefix, 'share', 'gtk-doc', 'html', self.module_name)
         if not os.path.isdir(html_dir):
             return
-        args = ['gtkdoc-rebase',
-                '--relative',
-                '--html-dir=%s' % html_dir]
-        args.extend(['--other-dir=%s' % extra_dir for extra_dir in self.cross_reference_deps])
+        args = [
+            'gtkdoc-rebase',
+            '--relative',
+            f'--html-dir={html_dir}',
+            *[
+                f'--other-dir={extra_dir}'
+                for extra_dir in self.cross_reference_deps
+            ],
+        ]
         if self.virtual_root:
-            args.extend(['--dest-dir=%s' % self.virtual_root])
+            args.extend([f'--dest-dir={self.virtual_root}'])
         self._run_command(args, cwd=self.output_dir)
 
     def api_missing_documentation(self):
-        unused_doc_file = os.path.join(self.output_dir, self.module_name + "-unused.txt")
+        unused_doc_file = os.path.join(
+            self.output_dir, f"{self.module_name}-unused.txt"
+        )
         if not os.path.exists(unused_doc_file) or not os.access(unused_doc_file, os.R_OK):
             return []
         return open(unused_doc_file).read().splitlines()
@@ -430,8 +433,7 @@ class PkgConfigGTKDoc(GTKDoc):
         pkg_config = os.environ.get('PKG_CONFIG', 'pkg-config')
 
         if not os.path.exists(pkg_config_path):
-            raise Exception('Could not find pkg-config file at: %s'
-                            % pkg_config_path)
+            raise Exception(f'Could not find pkg-config file at: {pkg_config_path}')
 
         self.cflags += " " + self._run_command([pkg_config,
                                                 pkg_config_path,

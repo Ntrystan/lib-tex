@@ -9,8 +9,7 @@ from match import Match
 class Options:
     var = {}
     def __getattr__(self, name):
-        if not self.var.has_key(name): return None
-        return self.var[name]
+        return None if not self.var.has_key(name) else self.var[name]
     def __setattr__(self, name, value):
         self.var[name] = value
     def scan(self, optionstring): # option-name or None
@@ -24,8 +23,3 @@ class Options:
         return None
 #end Options
 
-if False:
-    o = Options()
-    o.help = """
-    scans for options
-    """

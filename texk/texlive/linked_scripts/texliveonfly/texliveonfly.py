@@ -66,11 +66,8 @@ def generateSudoer(this_terminal_only = False,  tempDirectory = os.path.join(os.
         except OSError:
             print("\n" + scriptName + ": Our temp directory " + tempDirectory +  " already exists; good.")
 
-        #creates lock file
-        lockfile = open(lockfilePath, 'w')
-        lockfile.write( "Terminal privilege escalator running.")
-        lockfile.close()
-
+        with open(lockfilePath, 'w') as lockfile:
+            lockfile.write( "Terminal privilege escalator running.")
         #adds intro and line to remove lock
         bashCommand = '''echo \\"The graphical privilege escalator failed for some reason; we'll try asking for your administrator password here instead.\\n{0}\\n\\";{1}; rm \\"{2}\\"'''.format("-"*18,  bashCommand, lockfilePath)
 
@@ -186,7 +183,7 @@ def generateTLMGRFuncs(tlmgr, speaker, sudoFunc):
     #always call on first update; updates tlmgr and checks permissions
     def initializeInstallation():
         updateInfo = "Updating tlmgr prior to installing packages\n(this is necessary to avoid complaints from itself)."
-        print( scriptName + ": " + updateInfo)
+        print(f"{scriptName}: {updateInfo}")
 
         if default_permission:
             process = subprocess.Popen( [tlmgr,  "update",  "--self" ] )
@@ -233,7 +230,9 @@ sudo {2}'''.format(scriptName, packagesString, basicCommand)
 
         for line in outList:
             line = line.strip()
-            if line.startswith(preamble) and (not strictMatch or line.endswith("/" + term)):
+            if line.startswith(preamble) and (
+                not strictMatch or line.endswith(f"/{term}")
+            ):
                 #filters out the package in:
                 #   texmf-dist/.../package/file
                 #and adds it to packages
@@ -243,7 +242,7 @@ sudo {2}'''.format(scriptName, packagesString, basicCommand)
         results = list(set(results))    #removes duplicates
         results.remove("latex")     #removes most common fake result
 
-        if len(results) == 0:
+        if not results:
             speaker("File not found.")
             print("{0}: No results found for {1}".format( scriptName, term ) )
         else:
@@ -292,7 +291,7 @@ def generateCompiler(compiler, arguments, texDoc, exiter):
             line = getProcessLine()
 
         returnCode = None
-        while returnCode == None:
+        while returnCode is None:
             returnCode = process.poll()
 
         return (output, returnCode)
@@ -363,12 +362,15 @@ if __name__ == '__main__':
         filesSearch = re.findall(r"! LaTeX Error: File `([^`']*)' not found" , output) + re.findall(r"! I can't find file `([^`']*)'." , output)
         filesSearch = [ name for name in filesSearch if name != texDoc ]  #strips our .tex doc from list of files
         #next most reliable: infers filename from font error
-        fontsFileSearch = [ name + ".tfm" for name in re.findall(r"! Font \\[^=]*=([^\s]*)\s", output) ]
+        fontsFileSearch = [
+            f"{name}.tfm"
+            for name in re.findall(r"! Font \\[^=]*=([^\s]*)\s", output)
+        ]
         #brute force search for font name in files
         fontsSearch =  re.findall(r"! Font [^\n]*file\:([^\:\n]*)\:", output) + re.findall(r"! Font \\[^/]*/([^/]*)/", output)
 
         try:
-            if len(filesSearch) > 0 and filesSearch[0] != previousFile:
+            if filesSearch and filesSearch[0] != previousFile:
                 previousFile = installFile(filesSearch[0] )
             elif len(fontsFileSearch) > 0 and fontsFileSearch[0] != previousFontFile:
                 previousFontFile = installFile(fontsFileSearch[0])

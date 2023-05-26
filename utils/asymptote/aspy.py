@@ -174,12 +174,11 @@ class Datum(object):
             checkForErrors()
         else:
             # TODO: check if val has a toDatum field
-            raise TypeError("cannot initialize Datum from '%s'" %
-                    type(val).__name__)
+            raise TypeError(f"cannot initialize Datum from '{type(val).__name__}'")
 
     def __repr__(self):
         # TODO: Add type-checking to policy.
-        return '<Datum with handle %s>' % hex(self.handle)
+        return f'<Datum with handle {hex(self.handle)}>'
 
     def __int__(self):
         l = policy.contents.IntFromHandle(self.handle)

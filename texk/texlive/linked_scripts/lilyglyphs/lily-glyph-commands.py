@@ -47,16 +47,16 @@ def main(input_file):
     
     in_dir, in_file = os.path.split(input_file)
     os.chdir(in_dir)
-    
+
     # load and parse input file
     lg.read_input_file(in_file)
     read_entries()
-    
+
     # generate LaTeX commands and save them to output file
     # (will be a .tex sibling of the input file)
     lg.generate_latex_commands()
     out_file, out_ext = os.path.splitext(input_file)
-    lg.write_latex_file(os.path.join(os.getcwd(), out_file + '.tex'))
+    lg.write_latex_file(os.path.join(os.getcwd(), f'{out_file}.tex'))
     
 def read_entries():
     """Parse the input file and fill a dictionary"""

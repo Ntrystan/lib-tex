@@ -73,12 +73,10 @@ def warning(msg):
   sys.stderr.write('%s\n' % msg)
 
 def ValidID(dvi_id):
-    if dvi_id not in DVI_IDS:
-        return False
-    return True
+  return dvi_id in DVI_IDS
 
 def BadDVI(msg):
-  raise AttributeError, 'Bad DVI file: %s!' % msg
+  raise (AttributeError, f'Bad DVI file: {msg}!')
 
 def GetByte(fp): # { returns the next byte, unsigned }
   try: return ord(fp.read(1))
@@ -87,8 +85,7 @@ def GetByte(fp): # { returns the next byte, unsigned }
 def SignedByte(fp): # { returns the next byte, signed }
   try: b = ord(fp.read(1))
   except: return -1
-  if b < 128: return b
-  else: return b - 256
+  return b if b < 128 else b - 256
 
 def Get2Bytes(fp): # { returns the next two bytes, unsigned }
   try: a, b = map(ord, fp.read(2))
@@ -98,8 +95,7 @@ def Get2Bytes(fp): # { returns the next two bytes, unsigned }
 def SignedPair(fp): # {returns the next two bytes, signed }
   try: a, b = map(ord, fp.read(2))
   except: BadDVI('Failed to SignedPair()')
-  if a < 128: return (a << 8) + b
-  else: return ((a - 256) << 8) + b
+  return (a << 8) + b if a < 128 else ((a - 256) << 8) + b
 
 def Get3Bytes(fp): # { returns the next three bytes, unsigned }
   try: a, b, c = map(ord, fp.read(3))
@@ -109,8 +105,8 @@ def Get3Bytes(fp): # { returns the next three bytes, unsigned }
 def SignedTrio(fp): # { returns the next three bytes, signed }
   try: a, b, c = map(ord, fp.read(3))
   except: BadDVI('Failed to SignedTrio()')
-  if a < 128: return (((a << 8) + b) << 8) + c
-  else: return ((((a - 256) << 8) + b) << 8) + c
+  return ((((a << 8) + b) << 8) + c if a < 128 else
+          ((((a - 256) << 8) + b) << 8) + c)
 
 def Get4Bytes(fp): # { returns the next four bytes, unsigned }
   try: a, b, c, d = map(ord, fp.read(4))
@@ -139,8 +135,7 @@ def PutSignedQuad(q):
 def PutUnsigned(q):
   if q >= 0x1000000: return (3, PutSignedQuad(q))
   if q >= 0x10000:   return (2, Put3Bytes(q))
-  if q >= 0x100:     return (1, Put2Bytes(q))
-  return (0, PutByte(q))
+  return (1, Put2Bytes(q)) if q >= 0x100 else (0, PutByte(q))
 
 def PutSigned(q):
   if q < -0x800000 or q >= 0x800000:  return (3, PutSignedQuad(q))
@@ -151,24 +146,17 @@ def PutSigned(q):
   return (0, PutByte(q))
 
 def PutGlyphs(width, glyphs):
-  s = []
   length = len(glyphs)
-  s.append(PutSignedQuad(width))
-  s.append(Put2Bytes(length))
+  s = [PutSignedQuad(width), Put2Bytes(length)]
   for glyph in glyphs:
-    s.append(PutSignedQuad(glyph["x"]))
-    s.append(PutSignedQuad(glyph["y"]))
-  for glyph in glyphs:
-    s.append(Put2Bytes(glyph["id"]))
-
+    s.extend((PutSignedQuad(glyph["x"]), PutSignedQuad(glyph["y"])))
+  s.extend(Put2Bytes(glyph["id"]) for glyph in glyphs)
   return ''.join(s)
 
 def PutTextGlyphs(text, width, glyphs):
-  s = []
   length = len(text)
-  s.append(Put2Bytes(length))
-  for ch in text:
-    s.append(Put2Bytes(ch))
+  s = [Put2Bytes(length)]
+  s.extend(Put2Bytes(ch) for ch in text)
   s.append(PutGlyphs(width, glyphs))
 
   return ''.join(s)
@@ -183,15 +171,14 @@ def GetStrASCII(s): # used in Parse()
 
 def UCS2toJIS(c):
   s = c.encode('iso2022-jp')
-  if len(s) == 1: return ord(s)
-  else:           return (ord(s[3]) << 8) + ord(s[4])
+  return ord(s) if len(s) == 1 else (ord(s[3]) << 8) + ord(s[4])
 
 def GetStrUTF8(s): # used in Parse()
-  if len(s) > 1 and ((s[0] == "'" and s[-1] == "'") or (s[0] == '"' and s[-1] == '"')):
-    t = s[1:-1].decode('string_escape').decode('utf8')
-    if is_ptex: return [UCS2toJIS(c) for c in t]
-    else:       return [ord(c)       for c in t]
-  else:         return ''
+  if (len(s) <= 1
+      or (s[0] != "'" or s[-1] != "'") and (s[0] != '"' or s[-1] != '"')):
+    return ''
+  t = s[1:-1].decode('string_escape').decode('utf8')
+  return [UCS2toJIS(c) for c in t] if is_ptex else [ord(c)       for c in t]
 
 def PutStrASCII(t): # unsed in Dump()
   s = ''
@@ -202,7 +189,7 @@ def PutStrASCII(t): # unsed in Dump()
     elif o < 65536:     s += ('\\u%04x' % o)
     else:
       warning('Not support characters > 65535; may skip %d.\n' % o)
-  return "'%s'" % s
+  return f"'{s}'"
 
 def PutStrLatin1(t): # unsed in Dump()
   s = ''
@@ -213,22 +200,20 @@ def PutStrLatin1(t): # unsed in Dump()
     elif o < 65536:                       s += ('\\u%04x' % o)
     else:
       warning('Not support characters > 65535; may skip %d.\n' % o)
-  return "'%s'" % s
+  return f"'{s}'"
 
 def PutStrUTF8(t): # unsed in Dump()
   s = ''
-  if is_subfont:
-    for o in t:
+  for o in t:
+    if is_subfont:
       s += unichr((subfont_idx << 8) + o).encode('utf8')
-  else: # not the case of subfont
-    for o in t:
-      if o == 92:         s += '\\\\'
-      elif 32 <= o < 127: s += chr(o)
-      elif o < 128:       s += ('\\x%02x' % o)
-      elif is_ptex:
-        s += ''.join(['\x1b$B', chr(o/256), chr(o%256)]).decode('iso2022-jp').encode('utf8')
-      else:               s += unichr(o).encode('utf8')
-  return "'%s'" % s
+    elif o == 92:         s += '\\\\'
+    elif 32 <= o < 127: s += chr(o)
+    elif o < 128:       s += ('\\x%02x' % o)
+    elif is_ptex:
+      s += ''.join(['\x1b$B', chr(o/256), chr(o%256)]).decode('iso2022-jp').encode('utf8')
+    else:               s += unichr(o).encode('utf8')
+  return f"'{s}'"
 
 def PutStrSJIS(t): # unsed in Dump()
   s = ''
@@ -238,7 +223,7 @@ def PutStrSJIS(t): # unsed in Dump()
     elif o < 128:       s += ('\\x%02x' % o)
     else:
       s += ''.join(['\x1b$B', chr(o/256), chr(o%256)]).decode('iso2022-jp').encode('sjis')
-  return "'%s'" % s
+  return f"'{s}'"
 
 def IsFontChanged(f, z):
   global cur_font, cur_ssize, subfont_idx, is_subfont
@@ -248,9 +233,9 @@ def IsFontChanged(f, z):
       subfont_idx = int(f[-2:], 16)
       if cur_font == n and cur_ssize == z:
         return False
-      else:
-        cur_font = n; cur_ssize = z
-        return True
+      cur_font = n
+      cur_ssize = z
+      return True
   else:
     is_subfont = False
     cur_font = f; cur_ssize = z
@@ -301,7 +286,7 @@ class DVI(object):
     while loc >= 0:
       fp.seek(loc)
       if GetByte(fp) != BOP: BadDVI('byte %d is not bop' % fp.tell())
-      cnt = [SignedQuad(fp) for i in xrange(10)]
+      cnt = [SignedQuad(fp) for _ in xrange(10)]
       loc = SignedQuad(fp)
       page = self.ProcessPage(fp)
       self.pages.insert(0, {'count':cnt, 'content':page})
@@ -420,9 +405,9 @@ class DVI(object):
     except KeyError:
       if index > 0:
         fnt_name += "[%d]" % index
-      name = '"%s"' % fnt_name
+      name = f'"{fnt_name}"'
       if ext:
-        name = '"%s:%s"' % (fnt_name, ";".join(ext))
+        name = f'"{fnt_name}:{";".join(ext)}"'
 
       self.font_def[e] = {
         'name': name,
@@ -542,8 +527,7 @@ class DVI(object):
     length = Get2Bytes(fp)
     glyphs = {}
     for i in range(length):
-      glyphs[i] = {}
-      glyphs[i]["x"] = SignedQuad(fp)
+      glyphs[i] = {"x": SignedQuad(fp)}
       glyphs[i]["y"] = SignedQuad(fp)
 
     for i in range(length):
@@ -553,9 +537,7 @@ class DVI(object):
 
   def GetTextGlyphs(self, fp):
     length = Get2Bytes(fp)
-    chars = []
-    for i in range(length):
-      chars.append(Get2Bytes(fp))
+    chars = [Get2Bytes(fp) for _ in range(length)]
     width, glyphs = self.GetGlyphs(fp)
 
     return (chars, width, glyphs)
@@ -568,18 +550,14 @@ class DVI(object):
       gid = m.group("id")
       pos = m.group("pos")
 
-      if "," in pos:
-        x, y = pos.split(",")
-      else:
-        x, y = pos, "0sp"
-
+      x, y = pos.split(",") if "," in pos else (pos, "0sp")
       glyphs.append({"id": int(gid), 'x': self.ConvLen(x), 'y': self.ConvLen(y)})
 
     return (self.ConvLen(w), glyphs)
 
   def ReadTextGlyphs(self, val):
     _, text, glyphs = val.split(val[0])
-    text = "'%s'" % text
+    text = f"'{text}'"
     glyphs = glyphs.lstrip()
     chars = GetStr(text)
     w, glyphs = self.ReadGlyphs(glyphs)
@@ -600,11 +578,12 @@ class DVI(object):
     # WriteFontDefinitions
     self.WriteFontDefinitions(fp)
     # WritePages
-    stackdepth = 0; loc = -1
+    stackdepth = 0
+    loc = -1
     for page in self.pages:
-      w = x = y = z = 0; stack = []
-      s = [chr(BOP)]
-      s.extend([PutSignedQuad(c) for c in page['count']])
+      w = x = y = z = 0
+      stack = []
+      s = [chr(BOP), *[PutSignedQuad(c) for c in page['count']]]
       s.append(PutSignedQuad(loc))
       for cmd in page['content']:
         if cmd[0] == SET1:
@@ -654,7 +633,7 @@ class DVI(object):
           s.append(PutByte(TEXT_GLYPHS))
           s.append(PutTextGlyphs(cmd[1], cmd[2], cmd[3]))
         else:
-          warning('invalid command %s!' % cmd[0])
+          warning(f'invalid command {cmd[0]}!')
       s.append(chr(EOP))
       loc = fp.tell()
       fp.write(''.join(s))
@@ -713,8 +692,7 @@ class DVI(object):
 
   def ParseFromString(self, s, encoding=''):
     global GetStr, cur_font, cur_dsize, cur_ssize, subfont_idx
-    if encoding == 'ascii': GetStr = GetStrASCII
-    else:                   GetStr = GetStrUTF8
+    GetStr = GetStrASCII if encoding == 'ascii' else GetStrUTF8
     self.Initialize()
     self.fnt_num = 0
     for l in s.split('\n'):
@@ -724,8 +702,7 @@ class DVI(object):
         key, val = l.split(':', 1)
         key = key.strip(); val = val.strip()
       except:
-        if l[-1] == ']': v = l[:-1].split(' ')
-        else: v = l.split(' ')
+        v = l[:-1].split(' ') if l[-1] == ']' else l.split(' ')
         if v[0] == "[page":
           self.cur_page = []
           count = [GetInt(c) for c in v[1:]]
@@ -759,7 +736,6 @@ class DVI(object):
           self.mag = d
       elif key == "comment":
         self.comment = val[1:-1]
-      # Parse Postamble
       elif key == "maxv":
         self.max_v = self.ConvLen(val)
       elif key == "maxh":
@@ -768,11 +744,9 @@ class DVI(object):
         self.max_s = GetInt(val)
       elif key == "pages":
         self.total_pages = GetInt(val)
-      # Parse Font Definitions
       elif key == "fntdef":
         self.font_def[self.fnt_num] = self.GetFntDef(val)
         self.fnt_num += 1
-      # Parse Pages
       elif key == 'xxx':
         self.cur_page.append([XXX1, eval(val)])
       elif key == 'set':
@@ -811,10 +785,12 @@ class DVI(object):
         f = self.GetFntDef(val)
         n = f['name']
         d = f['design_size']
-        q = f['scaled_size']
         if n in subfont_list:
           is_subfont = True
-          cur_font = n; cur_dsize = d; cur_ssize = q
+          cur_font = n
+          cur_dsize = d
+          q = f['scaled_size']
+          cur_ssize = q
         else:
           is_subfont = False
           try:
@@ -861,7 +837,7 @@ class DVI(object):
         text, w, glyphs = self.ReadTextGlyphs(val)
         self.cur_page.append([TEXT_GLYPHS, text, w, glyphs])
       else:
-        warning('invalid command %s!' % key)
+        warning(f'invalid command {key}!')
 
   def AppendFNT1(self):
     f = {'name':cur_font+"%02x"%subfont_idx, 'design_size':cur_dsize, 'scaled_size':cur_ssize, 'checksum':0}
@@ -903,9 +879,9 @@ class DVI(object):
     # DumpFontDefinitions
     fp.write("\n[font definitions]\n")
     for e in sorted(self.font_def.keys()):
-      fp.write("fntdef: %s" % self.font_def[e]['name'])
+      fp.write(f"fntdef: {self.font_def[e]['name']}")
       if self.font_def[e]['design_size'] != self.font_def[e]['scaled_size']:
-        fp.write(" (%s) " % self.byconv(self.font_def[e]['design_size']))
+        fp.write(f" ({self.byconv(self.font_def[e]['design_size'])}) ")
       fp.write(" at %s\n" % self.byconv(self.font_def[e]['scaled_size']))
     # DumpPages
     for page in self.pages:
@@ -916,7 +892,7 @@ class DVI(object):
           indent -= tabsize
           fp.write("%spop:\n" % (' ' * indent))
           continue
-        fp.write("%s" % (' ' * indent))
+        fp.write(f"{' ' * indent}")
         if cmd[0] == PUSH:
           fp.write("push:\n")
           indent += tabsize
@@ -940,9 +916,9 @@ class DVI(object):
           f = self.font_def[cmd[1]]['name']
           z = self.font_def[cmd[1]]['scaled_size']
           if IsFontChanged(f, z):
-            fp.write("fnt: %s " % cur_font)
+            fp.write(f"fnt: {cur_font} ")
             if self.font_def[cmd[1]]['design_size'] != self.font_def[cmd[1]]['scaled_size']:
-              fp.write("(%s) " % self.byconv(self.font_def[cmd[1]]['design_size']))
+              fp.write(f"({self.byconv(self.font_def[cmd[1]]['design_size'])}) ")
             fp.write("at %s\n" % self.byconv(cur_ssize))
         elif cmd[0] == GLYPHS:
           fp.write("setglyphs: %s\n" % self.DumpGlyphs(cmd[1][0], cmd[1][1]))
@@ -970,25 +946,21 @@ class DVI(object):
           fp.write("z0:\n")
 
   def DumpGlyphs(self, w, g):
-    yPresent = False
-    for i in g:
-      if g[i]["y"] != 0:
-        yPresent = True
-
+    yPresent = any(g[i]["y"] != 0 for i in g)
     glyphs = []
     for i in g:
-      gid = "gid%s" % g[i]["id"]
+      gid = f'gid{g[i]["id"]}'
       x = self.byconv(g[i]["x"])
       y = self.byconv(g[i]["y"])
       if yPresent:
-        glyphs.append("%s(%s, %s)" % (gid, x, y))
+        glyphs.append(f"{gid}({x}, {y})")
       else:
-        glyphs.append("%s(%s)" % (gid, x))
+        glyphs.append(f"{gid}({x})")
 
-    return "%s %s" % (self.byconv(w), " ".join(glyphs))
+    return f'{self.byconv(w)} {" ".join(glyphs)}'
 
   def DumpTextGlyphs(self, t, w, g):
-    return "%s %s" % (PutStrUTF8(t), self.DumpGlyphs(w, g))
+    return f"{PutStrUTF8(t)} {self.DumpGlyphs(w, g)}"
 
   ##########################################################
   # Misc Functions
@@ -1024,7 +996,8 @@ class DVI(object):
       d, q = size.split(')', 1)
     except:
       n, q = s.split(' ', 1)
-    n = n.strip(); q = q.strip()
+    n = n.strip()
+    q = q.strip()
     if n.startswith('"') and n.endswith('"'):
       f['native'] = True
       n = n.strip('"')
@@ -1067,7 +1040,7 @@ class DVI(object):
             embolden = int(value)
 
       f['name'] = name
-      f['index'] = int(index)
+      f['index'] = index
       f['flags'] = flags
       f['color'] = color
       f['extend'] = extend
@@ -1094,28 +1067,23 @@ class DVI(object):
 
   def by_pt_conv(self, a):
     v = self.pt_conv * a
-    if v == int(v): return "%dpt" % int(v)
-    else:           return "%fpt" % v
+    return "%dpt" % int(v) if v == int(v) else "%fpt" % v
 
   def by_bp_conv(self, a):
     v = self.bp_conv * a
-    if v == int(v): return "%dbp" % int(v)
-    else:           return "%fbp" % v
+    return "%dbp" % int(v) if v == int(v) else "%fbp" % v
 
   def by_mm_conv(self, a):
     v = self.mm_conv * a
-    if v == int(v): return "%dmm" % int(v)
-    else:           return "%fmm" % v
+    return "%dmm" % int(v) if v == int(v) else "%fmm" % v
 
   def by_cm_conv(self, a):
     v = self.cm_conv * a
-    if v == int(v): return "%dcm" % int(v)
-    else:           return "%fcm" % v
+    return "%dcm" % int(v) if v == int(v) else "%fcm" % v
 
   def by_in_conv(self, a):
     v = self.in_conv * a
-    if v == int(v): return "%din" % int(v)
-    else:           return "%fin" % v
+    return "%din" % int(v) if v == int(v) else "%fin" % v
 
 ############################################################
 # Misc Functions for Main Routine
@@ -1166,17 +1134,17 @@ the Free Software Foundation, either version 3 of the License, or
                     help="the list of fonts with UCS2 subfont scheme (comma separated); disable internal subfont list if STR is empty")
   parser.set_defaults(unit='pt', encoding='utf8', tabsize=2)
   (options, args) = parser.parse_args()
-  if not options.unit in ['sp', 'pt', 'bp', 'mm', 'cm', 'in']:
-    parser.error("invalid unit name '%s'!" % options.unit)
+  if options.unit not in ['sp', 'pt', 'bp', 'mm', 'cm', 'in']:
+    parser.error(f"invalid unit name '{options.unit}'!")
   if options.tabsize < 0: 
     parser.error("negative tabsize!")
-  if not options.encoding in ['ascii', 'latin1', 'utf8', 'sjis']:
-    parser.error("invalid encoding '%s'!" % options.encoding)
+  if options.encoding not in ['ascii', 'latin1', 'utf8', 'sjis']:
+    parser.error(f"invalid encoding '{options.encoding}'!")
   if options.ptex:
     global is_ptex
     is_ptex = True
-    if not options.encoding in ['utf8', 'sjis']:
-      parser.error("invalid encoding '%s' for Japanese pTeX!" % options.encoding)
+    if options.encoding not in ['utf8', 'sjis']:
+      parser.error(f"invalid encoding '{options.encoding}' for Japanese pTeX!")
   if options.subfont:
     global subfont_list
     if not options.subfont[0]: # disable subfont

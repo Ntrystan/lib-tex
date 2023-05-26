@@ -20,9 +20,7 @@ class CommentMarkup:
         self.header = header
         self.text = None     # xml'text
     def get_filename(self):
-        if self.header is None:
-            return None
-        return self.header.get_filename()
+        return None if self.header is None else self.header.get_filename()
     def parse(self, header = None):
         if header is not None:
             self.header = header
@@ -78,8 +76,10 @@ class CommentMarkup:
             if not self.parse(): return None
         text = self.text
         if functionname is not None:
-            def function(text): return "<function>"+text+"</function> function"
-            text = (text
-                    .replace("this function", "the "+function(functionname))
-                    .replace("This function", "The "+function(functionname)))
+            def function(text):
+                return f"<function>{text}</function> function"
+
+            text = text.replace(
+                "this function", f"the {function(functionname)}"
+            ).replace("This function", f"The {function(functionname)}")
         return text

@@ -42,10 +42,10 @@ class AsymptoteEngine:
     def __init__(self, path=None, keepFiles=DebugFlags.keepFiles, keepDefaultArgs=True):
         if path is None:
             path = xa.getArgs().asypath
-            if path is None:
-                opt = xo.BasicConfigs.defaultOpt
-                opt.load()
-                path = opt['asyPath']
+        if path is None:
+            opt = xo.BasicConfigs.defaultOpt
+            opt.load()
+            path = opt['asyPath']
 
         if sys.platform[:3] == 'win':
             rx = 0  # stdin
@@ -59,14 +59,22 @@ class AsymptoteEngine:
             os.set_inheritable(wa, True)
             self.ostream = os.fdopen(wx, 'w')
             self.istream = os.fdopen(ra, 'r')
-            
+
         self.keepFiles = keepFiles
         if sys.platform[:3] == 'win':
             self.tmpdir = tempfile.mkdtemp(prefix='xasyData_',dir='./')+'/'
         else:
             self.tmpdir = tempfile.mkdtemp(prefix='xasyData_')+os.sep
 
-        self.args=['-xasy', '-noV', '-q', '-inpipe=' + str(rx), '-outpipe=' + str(wa), '-o', self.tmpdir]
+        self.args = [
+            '-xasy',
+            '-noV',
+            '-q',
+            f'-inpipe={str(rx)}',
+            f'-outpipe={str(wa)}',
+            '-o',
+            self.tmpdir,
+        ]
 
         self.asyPath = path
         self.asyProcess = None
@@ -109,9 +117,7 @@ class AsymptoteEngine:
 
     @property
     def active(self):
-        if self.asyProcess is None:
-            return False
-        return self.asyProcess.returncode is None
+        return False if self.asyProcess is None else self.asyProcess.returncode is None
 
     def stop(self):
         if self.active:
@@ -294,7 +300,7 @@ class asyPen(asyObj):
             self.computeColor()
         self.asyCode = 'rgb({:g},{:g},{:g})+{:s}'.format(self.color[0], self.color[1], self.color[2], str(self.width))
         if len(self.options) > 0:
-            self.asyCode = self.asyCode + '+' + self.options
+            self.asyCode = f'{self.asyCode}+{self.options}'
 
     def setWidth(self, newWidth):
         """Set the pen's width"""
@@ -320,7 +326,7 @@ class asyPen(asyObj):
         fout = self.asyEngine.ostream
         fin = self.asyEngine.istream
 
-        fout.write("pen p=" + self.getCode() + ';\n')
+        fout.write(f"pen p={self.getCode()}" + ';\n')
         fout.write("write(_outpipe,colorspace(p),newl);\n")
         fout.write("write(_outpipe,colors(p));\n")
         fout.write("flush(_outpipe);\n")
@@ -467,12 +473,7 @@ class asyPath(asyObj):
 
     def makeNodeStr(self, node):
         """Represent a node as a string"""
-        if node == 'cycle':
-            return node
-        else:
-            # if really want to, disable this rounding
-            # shouldn't be to much of a problem since 10e-6 is quite small... 
-            return '({:.6g},{:.6g})'.format(node[0], node[1])
+        return node if node == 'cycle' else '({:.6g},{:.6g})'.format(node[0], node[1])
 
     def updateCode(self, ps2asymap=identity()):
         """Generate the code describing the path"""
@@ -490,7 +491,7 @@ class asyPath(asyObj):
                     rawAsyCode.write(self.makeNodeStr(asy2psmap *  self.controlSet[count][0]))
                     rawAsyCode.write(' and ')
                     rawAsyCode.write(self.makeNodeStr(asy2psmap * self.controlSet[count][1]))
-                    rawAsyCode.write(".." + self.makeNodeStr(asy2psmap * node))
+                    rawAsyCode.write(f"..{self.makeNodeStr(asy2psmap * node)}")
                 count = count + 1
             self.asyCode = rawAsyCode.getvalue()
 
@@ -565,7 +566,7 @@ class asyPath(asyObj):
         fout = asy.ostream
         fin = asy.istream
 
-        fout.write("path p=" + self.getCode() + ';\n')
+        fout.write(f"path p={self.getCode()}" + ';\n')
         fout.write("write(_outpipe,length(p),newl);\n")
         fout.write("write(_outpipe,unstraighten(p),endl);\n")
         fout.write(asy.xasy)
@@ -574,7 +575,7 @@ class asyPath(asyObj):
         lengthStr = fin.readline()
         pathSegments = eval(lengthStr.split()[-1])
         pathStrLines = []
-        for i in range(pathSegments + 1):
+        for _ in range(pathSegments + 1):
             line = fin.readline()
             line = line.replace("\n", "")
             pathStrLines.append(line)
@@ -737,11 +738,11 @@ class xasyItem(Qc.QObject):
             transfExists = key in self.transfKeymap.keys()
             if transfExists:
                 transfExists = localCount <= len(self.transfKeymap[key]) - 1
-                if transfExists:
-                    validKey = not self.transfKeymap[key][localCount].deleted
             else:
                 validKey = False
 
+            if transfExists:
+                validKey = not self.transfKeymap[key][localCount].deleted
             if (not transfExists) or validKey:
                 currImage.IDTag = str(file)
                 newDrawObj = DrawObject(currImage.iqt, self.onCanvas['canvas'], transform=identity(),
@@ -783,7 +784,6 @@ class xasyItem(Qc.QObject):
                 if not DebugFlags.keepFiles and not keepFile:
                     try:
                         os.remove(item[0])
-                        pass
                     except OSError:
                         pass
                     finally:
@@ -836,7 +836,7 @@ class xasyItem(Qc.QObject):
         # template=AsyTempDir+"%d_%d.%s"
         fileformat = 'svg'
 
-        while raw_text != "Done\n" and raw_text != "Error\n":
+        while raw_text not in ["Done\n", "Error\n"]:
 #            print(raw_text)
             text = fin.readline()       # the actual bounding box.
             # print('TESTING:', text)
@@ -850,7 +850,7 @@ class xasyItem(Qc.QObject):
                 self.unsetKeys.add(keydata)     # the line and column to replace. 
             else:
                 self.userKeys.add(keydata)
-            
+
 #                print(line, col)
 
             if keydata not in keyCounts.keys():
@@ -1060,11 +1060,7 @@ class xasyScript(xasyItem):
     def __init__(self, canvas, engine, script="", transforms=None, transfKeyMap=None):
         """Initialize this script item"""
         super().__init__(canvas, asyengine=engine)
-        if transfKeyMap is not None:
-            self.transfKeymap = transfKeyMap
-        else:
-            self.transfKeymap = {}
-
+        self.transfKeymap = transfKeyMap if transfKeyMap is not None else {}
         self.script = script
         self.key2imagemap = {}
         self.namedUnsetKeys = {}
@@ -1078,11 +1074,11 @@ class xasyScript(xasyItem):
         keyCount = {}
 
         for im in self.imageList:
-            if im.key not in keyCount.keys():
-                keyCount[im.key] = 1
-            else:
+            if im.key in keyCount:
                 keyCount[im.key] += 1
 
+            else:
+                keyCount[im.key] = 1
         for key in keyCount:
             self.transfKeymap[key] = [identity()] * keyCount[key]
 
@@ -1091,7 +1087,7 @@ class xasyScript(xasyItem):
         for key in self.transfKeymap:
             testNum = re.match(r'^x(\d+)$', key)
             if testNum is not None:
-                maxCounter = max(maxCounter, int(testNum.group(1)))
+                maxCounter = max(maxCounter, int(testNum[1]))
         return maxCounter + 1
 
     def getTransformCode(self, asy2psmap=identity()):
@@ -1102,8 +1098,11 @@ class xasyScript(xasyItem):
 
                     writeval = list(reversed(val))
                     # need to map all transforms in a list if there is any non-identity
-                    # unfortunately, have to check all transformations in the list. 
-                    while not all(checktransf == identity() for checktransf in writeval) and writeval:
+                    # unfortunately, have to check all transformations in the list.
+                    while (
+                        any(checktransf != identity() for checktransf in writeval)
+                        and writeval
+                    ):
                         transf = writeval.pop()
                         if transf.deleted:
                             rawAsyCode.write(xasyItem.setKeyFormatStr.format(key, transf.getCode(asy2psmap)) + '\n//')
@@ -1116,7 +1115,11 @@ class xasyScript(xasyItem):
         return result
 
     def findNonIdKeys(self):
-        return {key for key in self.transfKeymap if not all(transf == identity() for transf in self.transfKeymap[key]) }
+        return {
+            key
+            for key in self.transfKeymap
+            if any(transf != identity() for transf in self.transfKeymap[key])
+        }
 
     def getObjectCode(self, asy2psmap=identity()):
         numeric=r'([-+]?(?:(?:\d*\.\d+)|(?:\d+\.?)))'
@@ -1147,16 +1150,12 @@ class xasyScript(xasyItem):
 
     def getReplacedKeysCode(self, key2replace: set=None) -> str:
         keylist = {}
-        prefix = ''
-        
         key2replaceSet = self.unsetKeys if key2replace is None else \
-                        self.unsetKeys & key2replace
+                            self.unsetKeys & key2replace
 
         linenum2key = {}
 
-        if not self.updatedPrefix:
-            prefix = self.keyPrefix
-
+        prefix = self.keyPrefix if not self.updatedPrefix else ''
         for key in key2replaceSet:
             actualkey = key
 
@@ -1176,7 +1175,7 @@ class xasyScript(xasyItem):
             for i_0 in range(len(raw_code_lines)):
                 i = i_0 + self.lineOffset
                 curr_str = raw_code_lines[i_0]
-                if i + 1 in keylist.keys():
+                if i + 1 in keylist:
                     # this case, we have a key.
                     with io.StringIO() as raw_line:
                         for j in range(len(curr_str)):
@@ -1194,7 +1193,7 @@ class xasyScript(xasyItem):
         baseCounter = 0
         newKey = oldkey
         while newKey in self.userKeys:
-            newKey = oldkey + ':' + str(baseCounter)
+            newKey = f'{oldkey}:{str(baseCounter)}'
             baseCounter += 1
         return newKey
 
@@ -1226,20 +1225,20 @@ class xasyScript(xasyItem):
                 self.drawObjectsMap.pop(oldkey)
 
                 settedKey[oldkey] = im.key
-            elif im.key in settedKey.keys():
+            elif im.key in settedKey:
                 im.key = settedKey[im.key]
 
-            if im.key not in keyCount.keys():
-                keyCount[im.key] = 1
-            else:
+            if im.key in keyCount:
                 keyCount[im.key] += 1
 
+            else:
+                keyCount[im.key] = 1
             if im.key not in self.key2imagemap.keys():
                 self.key2imagemap[im.key] = [im]
             else:
                 self.key2imagemap[im.key].append(im)
 
-            
+
 
         for key in keyCount:
             if key not in self.transfKeymap.keys():
@@ -1317,14 +1316,13 @@ class DrawObject(Qc.QObject):
     def boundingBox(self):
         if self.explicitBoundingBox is not None:
             testBbox = self.explicitBoundingBox
+        elif isinstance(self.drawObject, Qg.QImage):
+            testBbox = self.drawObject.rect()
+            testBbox.moveTo(self.btmRightAnchor.toPoint())
+        elif isinstance(self.drawObject, Qg.QPainterPath):
+            testBbox = self.baseTransform.toQTransform().mapRect(self.drawObject.boundingRect())
         else:
-            if isinstance(self.drawObject, Qg.QImage):
-                testBbox = self.drawObject.rect()
-                testBbox.moveTo(self.btmRightAnchor.toPoint())
-            elif isinstance(self.drawObject, Qg.QPainterPath):
-                testBbox = self.baseTransform.toQTransform().mapRect(self.drawObject.boundingRect())
-            else:
-                raise TypeError('drawObject is not a valid type!')
+            raise TypeError('drawObject is not a valid type!')
         pointList = [self.getScreenTransform().toQTransform().map(point) for point in [
             testBbox.topLeft(), testBbox.topRight(), testBbox.bottomLeft(), testBbox.bottomRight()
         ]]
@@ -1345,7 +1343,7 @@ class DrawObject(Qc.QObject):
             canvas = self.mainCanvas
         if additionalTransformation is None:
             additionalTransformation = Qg.QTransform()
-            
+
         assert canvas.isActive()
 
         canvas.save()
@@ -1368,9 +1366,9 @@ class DrawObject(Qc.QObject):
             canvas.drawImage(self.explicitBoundingBox, self.drawObject)
         elif isinstance(self.drawObject, xs.SvgObject):
             threshold = 1.44
-            
+
             if self.cachedDPI is None or self.cachedSvgImg is None \
-               or dpi > self.maxDPI*threshold:
+                   or dpi > self.maxDPI*threshold:
                 self.cachedDPI = dpi
                 self.maxDPI=max(self.maxDPI,dpi)
                 self.cachedSvgImg = self.drawObject.render(dpi)
@@ -1381,10 +1379,7 @@ class DrawObject(Qc.QObject):
         elif isinstance(self.drawObject, Qg.QPainterPath):
             path = self.baseTransform.toQTransform().map(self.drawObject)
             if self.fill:
-                if self.pen:
-                    brush = self.pen.toQPen().brush()
-                else:
-                    brush = Qg.QBrush()
+                brush = self.pen.toQPen().brush() if self.pen else Qg.QBrush()
                 canvas.fillPath(path, brush)
             else:
                 canvas.drawPath(path)

@@ -34,10 +34,10 @@ ALLOWED_BLOCKS = [
 
 files = [io.open (x, encoding='utf-8') for x in sys.argv[1:]]
 
-headers = [[f.readline () for i in range (2)] for f in files]
+headers = [[f.readline () for _ in range (2)] for f in files]
 
-data = [{} for f in files]
-values = [{} for f in files]
+data = [{} for _ in files]
+values = [{} for _ in files]
 for i, f in enumerate (files):
 	for line in f:
 
@@ -51,11 +51,7 @@ for i, f in enumerate (files):
 
 		uu = fields[0].split ('..')
 		start = int (uu[0], 16)
-		if len (uu) == 1:
-			end = start
-		else:
-			end = int (uu[1], 16)
-
+		end = start if len (uu) == 1 else int (uu[1], 16)
 		t = fields[1]
 
 		for u in range (start, end + 1):
@@ -69,9 +65,9 @@ for i,v in enumerate (defaults):
 combined = {}
 for i,d in enumerate (data):
 	for u,v in d.items ():
-		if i == 2 and not u in combined:
+		if i == 2 and u not in combined:
 			continue
-		if not u in combined:
+		if u not in combined:
 			combined[u] = list (defaults)
 		combined[u][i] = v
 combined = {k:v for k,v in combined.items() if k in ALLOWED_SINGLES or v[2] in ALLOWED_BLOCKS}
@@ -99,7 +95,7 @@ print (" * on files with these headers:")
 print (" *")
 for h in headers:
 	for l in h:
-		print (" * %s" % (l.strip()))
+		print(f" * {l.strip()}")
 print (" */")
 print ()
 print ('#include "hb-ot-shape-complex-indic.hh"')
@@ -159,12 +155,12 @@ print ()
 total = 0
 used = 0
 last_block = None
-def print_block (block, start, end, data):
+def print_block(block, start, end, data):
 	global total, used, last_block
 	if block and block != last_block:
 		print ()
 		print ()
-		print ("  /* %s */" % block)
+		print(f"  /* {block} */")
 	num = 0
 	assert start % 8 == 0
 	assert (end+1) % 8 == 0
@@ -175,7 +171,7 @@ def print_block (block, start, end, data):
 		if u in data:
 			num += 1
 		d = data.get (u, defaults)
-		print ("%9s" % ("_(%s,%s)," % (short[0][d[0]], short[1][d[1]])), end="")
+		print("%9s" % f"_({short[0][d[0]]},{short[1][d[1]]}),", end="")
 
 	total += end - start + 1
 	used += num
@@ -229,7 +225,7 @@ print ("hb_indic_get_categories (hb_codepoint_t u)")
 print ("{")
 print ("  switch (u >> %d)" % page_bits)
 print ("  {")
-pages = set ([u>>page_bits for u in starts+ends+list (singles.keys ())])
+pages = {u>>page_bits for u in starts+ends+list (singles.keys ())}
 for p in sorted(pages):
 	print ("    case 0x%0Xu:" % p)
 	for u,d in singles.items ():
@@ -252,8 +248,7 @@ for i in range (2):
 	print
 	vv = sorted (values[i].keys ())
 	for v in vv:
-		print ("#undef %s_%s" %
-			(what_short[i], short[i][v]))
+		print(f"#undef {what_short[i]}_{short[i][v]}")
 print ()
 print ("/* == End of generated table == */")
 

@@ -90,8 +90,8 @@ class CustMatTransform(Qw.QDialog):
         canvas.drawLine(Qc.QLine(0, -9999, 0, 9999))
 
         fromIter, toIter = -7, 7
-        gridSize = 20
         if grid:
+            gridSize = 20
             for iterIndex in range(fromIter, toIter + 1):
                 canvas.drawLine(Qc.QLine(-9999, iterIndex * gridSize, 9999, iterIndex * gridSize))
                 canvas.drawLine(Qc.QLine(iterIndex * gridSize, -9999, iterIndex * gridSize, 9999))

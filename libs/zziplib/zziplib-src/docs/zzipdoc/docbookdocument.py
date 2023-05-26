@@ -26,7 +26,7 @@ class DocbookDocument:
         except Exception, e: pass
         return self.title
     def _xml_doctype(self, rootnode):
-        return "<!DOCTYPE "+rootnode+self.docbook_dtd+">"
+        return f"<!DOCTYPE {rootnode}{self.docbook_dtd}>"
     def _xml_text(self, xml):
         """ accepts adapter objects with .xml_text() """
         try:   return xml.xml_text()
@@ -34,8 +34,7 @@ class DocbookDocument:
         return str(xml)
     def _fetch_rootnode(self, text):
         fetch = Match(r"^[^<>]*<(\w+)\b")
-        if text & fetch: return fetch[1]
-        return self.rootnode
+        return fetch[1] if text & fetch else self.rootnode
     def _filename(self, filename):
         if filename is not None:
             self.filename = filename
@@ -43,7 +42,7 @@ class DocbookDocument:
         if not filename & Match(r"\.\w+$"):
             ext = self.o.docbook
             if not ext: ext = "docbook"
-            filename += "."+ext
+            filename += f".{ext}"
         return filename
     def save(self, filename = None):
         filename = self._filename(filename)

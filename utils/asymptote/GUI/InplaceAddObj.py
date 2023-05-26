@@ -18,7 +18,6 @@ class InplaceObjProcess(Qc.QObject):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._active = False
-        pass
 
     @property
     def active(self):
@@ -86,11 +85,11 @@ class AddCircle(InplaceObjProcess):
         return PrimitiveShape.PrimitiveShape.circle(self.center, self.radius)
 
     def getXasyObject(self):
-        if self.fill:
-            newObj = x2a.xasyFilledShape(self.getObject(), None)
-        else:
-            newObj = x2a.xasyShape(self.getObject(), None)
-        return newObj
+        return (
+            x2a.xasyFilledShape(self.getObject(), None)
+            if self.fill
+            else x2a.xasyShape(self.getObject(), None)
+        )
 
     def forceFinalize(self):
         self.mouseRelease()
@@ -183,16 +182,11 @@ class AddBezierShape(InplaceObjProcess):
             self.useLegacy = self.info['options']['useLegacyDrawMode']
             self.pointsList.clear()
             self.pointsList.append((x, y, None))
-        else:
-            # see http://doc.qt.io/archives/qt-4.8/qt.html#MouseButton-enum
-            if (int(mouseEvent.buttons()) if mouseEvent is not None else 0) & 0x2 and self.useLegacy:
-                self.forceFinalize()
+        elif (int(mouseEvent.buttons()) if mouseEvent is not None else 0) & 0x2 and self.useLegacy:
+            self.forceFinalize()
 
     def _getLinkType(self):
-        if self.info['useBezier']:
-            return '..'
-        else:
-            return '--'
+        return '..' if self.info['useBezier'] else '--'
 
     def mouseMove(self, pos, event):
         # in postscript coords.
@@ -266,8 +260,7 @@ class AddBezierShape(InplaceObjProcess):
         if self._active:
             if self.pointsList:
                 self.updateBasePathPreview()
-                newPath = self.basePathPreview.toQPainterPath()
-                return newPath
+                return self.basePathPreview.toQPainterPath()
 
     def getXasyObject(self):
         if self.fill:
@@ -343,14 +336,11 @@ class AddPoly(InplaceObjProcess):
     def _angle(self):
         dist_x = self.currPos.x() - self.center.x()
         dist_y = self.currPos.y() - self.center.y()
-        if dist_x == 0 and dist_y == 0:
-            return 0
-        else:
-            return math.atan2(dist_y, dist_x)
+        return 0 if dist_x == 0 and dist_y == 0 else math.atan2(dist_y, dist_x)
 
     def getXasyObject(self):
-        if self.fill:
-            newObj = x2a.xasyFilledShape(self.getObject(), None)
-        else:
-            newObj = x2a.xasyShape(self.getObject(), None)
-        return newObj
+        return (
+            x2a.xasyFilledShape(self.getObject(), None)
+            if self.fill
+            else x2a.xasyShape(self.getObject(), None)
+        )

@@ -106,20 +106,20 @@ def check_paths():
     # and create them if necessary
     # (otherwise we'll get errors when trying to write in them)
     ls = os.listdir('.')
-    if not lg.dir_lysrc in ls:
+    if lg.dir_lysrc not in ls:
         os.mkdir(lg.dir_lysrc)
-    if not lg.dir_pdfs in ls:
+    if lg.dir_pdfs not in ls:
         os.mkdir(lg.dir_pdfs)
-    if not lg.dir_cmd in ls:
+    if lg.dir_cmd not in ls:
         os.mkdir(lg.dir_cmd)
 
 def cmd_filename(cmd_name):
     if cmd_name.startswith('lily'):
-        return cmd_name[:4] + '-' + cmd_name[4:]
+        return f'{cmd_name[:4]}-{cmd_name[4:]}'
     elif cmd_name.startswith('lily-'):
         return cmd_name
     else:
-        return 'lily-' + cmd_name
+        return f'lily-{cmd_name}'
 
 # set default scale and raise arguments to empty
 scale = ''
@@ -217,7 +217,7 @@ def write_file_info(name, fout):
     fout.write(spacer)
     fout.write(long_line)
     fout.write(spacer)
-    fout.write('%   ' + name + '.ly' + ' ' * padding + '%\n')
+    fout.write(f'%   {name}.ly' + ' ' * padding + '%\n')
     fout.write(spacer)
     fout.write(header)
     fout.write(lg.signature())
